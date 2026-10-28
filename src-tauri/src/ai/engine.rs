@@ -152,18 +152,24 @@ impl LlamaEngine {
 
     pub async fn stop_chat(&self) {
         let mut child = self.chat_child.lock().await;
-        if let Some(ref mut proc) = *child {
+        let proc = child.take();
+        drop(child);
+        if let Some(mut proc) = proc {
             let _ = proc.kill();
+            // Reap the process so the OS releases the port/PID before we spawn
+            // a replacement; otherwise restart_engine can leave a stray child.
+            let _ = tokio::task::spawn_blocking(move || proc.wait()).await;
         }
-        *child = None;
     }
 
     pub async fn stop_embed(&self) {
         let mut child = self.embed_child.lock().await;
-        if let Some(ref mut proc) = *child {
+        let proc = child.take();
+        drop(child);
+        if let Some(mut proc) = proc {
             let _ = proc.kill();
+            let _ = tokio::task::spawn_blocking(move || proc.wait()).await;
         }
-        *child = None;
     }
 
     pub async fn stop_all(&self) {

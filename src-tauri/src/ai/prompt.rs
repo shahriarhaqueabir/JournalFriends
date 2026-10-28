@@ -119,8 +119,8 @@ You have access to the user's Memory — durable memories, information, and know
                 .total_cmp(&a.confidence)
                 .then_with(|| b.created_at.cmp(&a.created_at))
         });
-        for fact in ranked_facts.into_iter().take(10) {
-            let content_tail: String = fact.content.chars().take(120).collect();
+        for fact in ranked_facts.into_iter().take(5) {
+            let content_tail: String = fact.content.chars().take(80).collect();
             prompt.push_str(&format!(
                 "- {}: {} ({})\n",
                 fact.title, content_tail, fact.category
@@ -128,11 +128,11 @@ You have access to the user's Memory — durable memories, information, and know
         }
     }
 
-    prompt.push_str("\nRelevant journal snippets:\n");
+    prompt.push_str("\nRelevant journal snippets (snapshot; call search_journal for more):\n");
     if journal_context.is_empty() {
         prompt.push_str("- No directly matching journal snippets found.\n");
     } else {
-        for snippet in journal_context.iter().take(5) {
+        for snippet in journal_context.iter().take(3) {
             let title = snippet.title.as_deref().unwrap_or("Untitled");
             prompt.push_str(&format!(
                 "- [{}] {}: {}\n",
@@ -141,11 +141,11 @@ You have access to the user's Memory — durable memories, information, and know
         }
     }
 
-    prompt.push_str("\nCurrent open tasks:\n");
+    prompt.push_str("\nCurrent open tasks (snapshot; call list_tasks for full list):\n");
     if task_context.is_empty() {
         prompt.push_str("- No open tasks found.\n");
     } else {
-        for task in task_context.iter().take(8) {
+        for task in task_context.iter().take(5) {
             prompt.push_str(&format!(
                 "- {} | {} | due: {}\n",
                 task.priority,
@@ -155,7 +155,7 @@ You have access to the user's Memory — durable memories, information, and know
         }
     }
 
-    prompt.push_str("\nUpcoming events (Next 3 days):\n");
+    prompt.push_str("\nUpcoming events (Next 3 days; call list_events for more):\n");
     if event_context.is_empty() {
         prompt.push_str("- No upcoming events scheduled.\n");
     } else {
