@@ -1,0 +1,137 @@
+# =============================================================================
+# HawkwardJournalAI - Barebone Repository Manifest
+# =============================================================================
+
+# Rust / Backend Artifacts
+/target/
+/src-tauri/target/
+/src-tauri/target_temp/
+/src-tauri/gen/
+**/*.rs.bk
+build.rs
+/tools/
+
+# Binary Locks (Keep root Cargo.lock for deterministic builds)
+Cargo.lock
+!Cargo.lock
+/src-tauri/Cargo.lock
+!/src-tauri/Cargo.lock
+
+# Tauri / Dev Artifacts
+/src-tauri/tauri_dev_log.txt
+/src-tauri/build_error*.txt
+/src-tauri/build_full.txt
+/src-tauri/build_lib.txt
+/src-tauri/verbose_build.txt
+/src-tauri/tasklist
+/src-tauri/binaries/
+
+# IDEs & Editors
+.vscode/
+.idea/
+.vs/
+.helix/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs & Error Dumps
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+debug/
+test-results/
+coverage/
+
+# Local App Data (CRITICAL EXCLUSIONS)
+# These contain personal user data and should NEVER be in Git.
+/data/
+/backups/
+/attachments/
+/exports/
+
+# Database artifacts
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
+
+# Large Compiled Binary Data / Artifacts
+*.pdb
+*.lib
+*.rlib
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+
+# Agent / AI Metadata
+.gemini/
+.ai/
+.codegraph/
+/tmp/
+AgentDocs/research/
+
+# Keep empty directory structure via .gitkeep
+/data/*
+/backups/*
+/attachments/*
+/exports/*
+!/**/.gitkeep
+
+# .gitignore Refinements
+/src-tauri/target_temp/
+node_modules/
+.env
+.env.*
+
+# Build/test logs (should never be committed)
+/src-tauri/build_verbose_full.txt
+/src-tauri/check_output.txt
+/src-tauri/full_test_output.txt
+/src-tauri/memory_test_output.txt
+
+# =============================================================================
+# Generated / Agent-State Artifacts (getset push-readiness, 2026-08-06)
+# =============================================================================
+
+# graphify knowledge-graph output (regenerable via python -m graphify)
+graphify-out/
+
+# Playwright E2E artifacts
+playwright-report/
+tests-e2e/failure-screenshot.png
+
+# Agent infrastructure state (homunculus / kanban / knowledgebase)
+.agents/
+/.memory
+*.md
+/.memory
+/AgentDocs
+CHANGELOG.md
+
+# =============================================================================
+# Local AI Runtime & Model Weights (2026-10-28)
+# =============================================================================
+
+# Staged llama.cpp release runtime used only to build the Windows bundle.
+# Required locally, never committed (DLLs/EXE are ignored above; the license,
+# batch helper and model weights were not).
+/llama-b10952-bin-win-cuda-x64/
+*.gguf
+
+# =============================================================================
+# Local Tooling & Scratch Assets (2026-10-28)
+# =============================================================================
+
+# Local agent tooling state (52 MB of plugin/runtime state, not project source)
+/.opencode/
+
+# Design reference images kept at the repo root (not referenced by src/)
+/background*.png

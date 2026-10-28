@@ -1,0 +1,96 @@
+<div class="inbox-view-layout">
+  <header class="tasks-header">
+    <div class="header-main">
+      <h2>Review Inbox</h2>
+      <div class="task-tabs">
+        <button class="inbox-filter active" data-filter="pending">Pending</button>
+        <button class="inbox-filter" data-filter="accepted">Accepted</button>
+        <button class="inbox-filter" data-filter="dismissed">Dismissed</button>
+      </div>
+    </div>
+    <div class="header-actions">
+      <hj-button variant="ghost" id="btn-clear-inbox">Clear Processed</hj-button>
+    </div>
+  </header>
+
+  <div id="inbox-items-container" class="task-items-container">
+    <div class="list-empty">Scanning for thoughts...</div>
+  </div>
+</div>
+
+<style>
+  .inbox-view-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 20px;
+    color: var(--color-text);
+  }
+
+  .proposal-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.1s;
+  }
+
+  .proposal-card:hover {
+    border-color: var(--color-text-muted);
+  }
+
+  .proposal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .proposal-type-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .type-task { background: rgba(108, 142, 247, 0.15); color: #6c8ef7; }
+  .type-fact { background: rgba(186, 104, 200, 0.15); color: #ba68c8; }
+  .type-event { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+  .type-note { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
+
+  .proposal-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin: 4px 0;
+  }
+
+  .proposal-provenance {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-style: italic;
+    border-left: 2px solid var(--color-border);
+    padding-left: 8px;
+  }
+
+  .proposal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .badge-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--color-error);
+    border-radius: 50%;
+    border: 2px solid var(--color-canvas);
+  }
+</style>

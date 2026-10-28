@@ -1,0 +1,214 @@
+<div class="system-page">
+  <div class="system-page-inner">
+    <header class="sys-header">
+      <h1>System</h1>
+      <p>Runtime state, engines, analysis queue, database tools, and the app log.</p>
+    </header>
+
+    <section class="sys-section">
+      <h2>Runtime</h2>
+      <p>Live runtime state — storage, counts, engines, and models.</p>
+      <table class="data-table runtime-table">
+        <tbody>
+          <tr>
+            <th scope="row">Data directory</th>
+            <td>
+              <div class="path-cell">
+                <code class="path" id="rt-data-dir">—</code>
+                <button class="icon-btn copy-btn" data-copy-target="rt-data-dir" aria-label="Copy data directory path"><hj-icon name="copy" size="16" aria-hidden="true"></hj-icon></button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Database file</th>
+            <td>
+              <div class="path-cell">
+                <code class="path" id="rt-db-path">—</code>
+                <button class="icon-btn copy-btn" data-copy-target="rt-db-path" aria-label="Copy database path"><hj-icon name="copy" size="16" aria-hidden="true"></hj-icon></button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Database size</th>
+            <td class="mono" id="rt-db-size">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Log file</th>
+            <td>
+              <div class="path-cell">
+                <code class="path" id="rt-log-path">—</code>
+                <button class="icon-btn copy-btn" data-copy-target="rt-log-path" aria-label="Copy log file path"><hj-icon name="copy" size="16" aria-hidden="true"></hj-icon></button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Journal entries</th>
+            <td class="mono" id="rt-journal">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Tasks</th>
+            <td class="mono" id="rt-tasks">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Memory facts</th>
+            <td class="mono" id="rt-facts">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Conversations</th>
+            <td class="mono" id="rt-convos">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Analysis queue</th>
+            <td class="mono" id="rt-queue">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Analysis statuses</th>
+            <td class="mono" id="rt-statuses">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Chat server</th>
+            <td class="mono" id="rt-chat">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Embed server</th>
+            <td class="mono" id="rt-embed">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Health check</th>
+            <td class="mono" id="rt-health">—</td>
+          </tr>
+          <tr>
+            <th scope="row">Models</th>
+            <td class="mono" id="rt-models">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="sys-section">
+      <h2>AI Engines</h2>
+      <p>llama-server processes — chat (:8080) and embed (:8081).</p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col">Status</th>
+            <th scope="col">Latency</th>
+            <th scope="col" class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="engine-controls">
+          <tr>
+            <th scope="row">Chat <span class="mono">:8080</span></th>
+            <td>
+              <span class="status-cell">
+                <span class="status-dot" data-engine-dot="chat"></span>
+                <span class="mono" data-engine-state="chat">—</span>
+              </span>
+            </td>
+            <td class="mono" data-engine-latency="chat">—</td>
+            <td class="row-actions">
+              <hj-button variant="ghost" size="sm" data-engine-action="check" data-service="chat">Health</hj-button>
+              <hj-button variant="ghost" size="sm" data-engine-action="restart" data-service="chat">Restart</hj-button>
+              <hj-button variant="ghost" size="sm" data-engine-action="stop" data-service="chat">Stop</hj-button>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Embed <span class="mono">:8081</span></th>
+            <td>
+              <span class="status-cell">
+                <span class="status-dot" data-engine-dot="embed"></span>
+                <span class="mono" data-engine-state="embed">—</span>
+              </span>
+            </td>
+            <td class="mono" data-engine-latency="embed">—</td>
+            <td class="row-actions">
+              <hj-button variant="ghost" size="sm" data-engine-action="check" data-service="embed">Health</hj-button>
+              <hj-button variant="ghost" size="sm" data-engine-action="restart" data-service="embed">Restart</hj-button>
+              <hj-button variant="ghost" size="sm" data-engine-action="stop" data-service="embed">Stop</hj-button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="sys-actions">
+        <hj-button variant="primary" id="btn-engine-start">Start engines</hj-button>
+        <span id="engine-start-status" class="settings-status"></span>
+      </div>
+    </section>
+
+    <section class="sys-section">
+      <h2>Analysis Queue</h2>
+      <p>Journal entries waiting on — or failed in — the AI analysis worker.</p>
+      <div class="sys-actions">
+        <hj-button variant="ghost" size="sm" id="btn-queue-refresh">Refresh</hj-button>
+        <span id="queue-count" class="queue-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Entry</th>
+              <th>Status</th>
+              <th class="col-time">Queued</th>
+              <th class="col-time">Updated</th>
+              <th class="col-dur">Tries</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="queue-body">
+            <tr class="table-empty">
+              <td colspan="6">Queue is empty.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sys-section">
+      <h2>Database</h2>
+      <p>Manual backup (SQLite Backup API, D-98) and quick access to the data directory.</p>
+      <div class="sys-actions">
+        <hj-button variant="primary" id="btn-backup-now">Backup now</hj-button>
+        <hj-button variant="ghost" size="sm" id="btn-open-data-dir">Open data dir</hj-button>
+        <span id="db-action-status" class="settings-status"></span>
+      </div>
+    </section>
+
+    <section class="sys-section">
+      <h2>SQL Runner</h2>
+      <p>Read-only queries against the unlocked vault (SELECT / WITH / PRAGMA / EXPLAIN — D-147).</p>
+      <div class="field">
+        <label class="field-label" for="sys-sql-input">Statement</label>
+        <textarea id="sys-sql-input" class="textarea-control" rows="3" spellcheck="false" placeholder="SELECT status, COUNT(*) FROM tasks GROUP BY status;"></textarea>
+      </div>
+      <div class="sys-actions">
+        <hj-button variant="primary" id="btn-sql-run">Run</hj-button>
+        <span id="sys-sql-status" class="settings-status"></span>
+      </div>
+      <div class="sql-result hidden" id="sys-sql-result">
+        <div class="sql-result-meta mono" id="sys-sql-meta"></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead id="sys-sql-thead"></thead>
+            <tbody id="sys-sql-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="sys-section">
+      <h2>Log Viewer</h2>
+      <p>The verbose DEBUG log the app writes to disk.</p>
+      <div class="log-toolbar">
+        <div id="log-tail-levels" class="segmented log-levels" role="group" aria-label="Minimum log level">
+          <button class="active" data-level="INFO" aria-pressed="true">Info</button>
+          <button data-level="DEBUG" aria-pressed="false">Debug</button>
+          <button data-level="WARN" aria-pressed="false">Warn</button>
+          <button data-level="ERROR" aria-pressed="false">Error</button>
+        </div>
+        <hj-button variant="ghost" size="sm" id="btn-open-log">Open log file</hj-button>
+      </div>
+      <pre id="log-tail" class="log-view"><span class="log-tail-placeholder">Log file not available yet.</span></pre>
+    </section>
+  </div>
+</div>

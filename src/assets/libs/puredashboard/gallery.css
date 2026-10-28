@@ -1,0 +1,111 @@
+/* puredashboard-gallery — styles for <puredashboard-gallery> (gallery.js). BEM, block = the tag.
+ *
+ * Self-contained & theme-able through the shared token chain (falls back to system
+ * colours with no theme linked). It's a dev/preview tool, so it fills the viewport.
+ */
+puredashboard-gallery {
+  --pd-bg:      var(--bg,      Canvas);
+  --pd-panel:   var(--panel,   color-mix(in srgb, CanvasText 4%, Canvas));
+  --pd-panel-2: var(--panel-2, color-mix(in srgb, CanvasText 7%, Canvas));
+  --pd-text:    var(--text,    CanvasText);
+  --pd-muted:   var(--muted,   color-mix(in srgb, CanvasText 55%, Canvas));
+  --pd-faint:   var(--faint,   color-mix(in srgb, CanvasText 40%, Canvas));
+  --pd-border:  var(--border,  color-mix(in srgb, CanvasText 16%, Canvas));
+  --pd-accent:  var(--accent,  #3b82f6);
+
+  display: block;
+  /* full-viewport shell that never scrolls itself — the sider and the canvas
+   * (<puredashboard-content>) each scroll on their own. */
+  height: 100vh;
+  overflow: hidden;
+  font: 14px/1.5 var(--sans, system-ui, sans-serif);
+  color: var(--pd-text);
+  background: var(--pd-bg);
+}
+/* only-mode: a single story, full-bleed, no chrome (for screenshots) */
+puredashboard-gallery:has(> .puredashboard-gallery__only) { height: auto; overflow: visible; }
+.puredashboard-gallery__only { padding: 32px; }
+
+/* the shell is the library's own layout: sider | (header / content) */
+.puredashboard-gallery__shell { height: 100%; }
+.puredashboard-gallery__main { flex: 1 1 auto; min-width: 0; }
+
+/* sidebar head: brand + filter (the sider's header slot) */
+.puredashboard-gallery__side-head { gap: 10px; }
+.puredashboard-gallery__brand { display: block; padding: 4px 6px 2px; font-weight: 700; font-size: 15px; color: var(--pd-text); text-decoration: none; }
+.puredashboard-gallery__brand:hover { color: var(--pd-accent); }
+.puredashboard-gallery__filter { display: block; width: 100%; }
+
+/* toolbar: <puredashboard-header> split into start (toggle + title) / end (controls) */
+.puredashboard-gallery__burger { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; margin: 0; flex: none; color: var(--pd-muted); background: transparent; border: 0; border-radius: var(--radius-sm, 8px); cursor: pointer; }
+.puredashboard-gallery__burger:hover { color: var(--pd-text); background: var(--pd-panel-2); }
+.puredashboard-gallery__title { font-size: 16px; margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.puredashboard-gallery__controls { flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.puredashboard-gallery__controls label { color: var(--pd-muted); font-size: 13px; white-space: nowrap; }
+.puredashboard-gallery__controls select { font: inherit; margin-left: 4px; padding: 5px 10px; background: var(--pd-panel-2); color: var(--pd-text); border: 1px solid var(--pd-border); border-radius: var(--radius-sm, 8px); cursor: pointer; }
+/* grid-auto-rows: min-content sizes each story row to its own content — without it,
+ * a story that's a scroll container (overflow:hidden makes its auto min-height 0) can
+ * be shrunk below its content and clipped when the canvas overflows. The canvas
+ * (<puredashboard-content>) scrolls, so tall stories are fully visible. */
+.puredashboard-gallery__canvas { padding: 24px; display: grid; grid-auto-rows: min-content; gap: 24px; align-content: start; }
+
+/* small screens: the header controls wrap below the title */
+@media (max-width: 640px) {
+  .puredashboard-gallery__toolbar { height: auto; min-height: var(--pd-header-height, 58px); flex-wrap: wrap; padding-block: 8px; }
+  .puredashboard-gallery__controls { flex: 1 1 100%; margin-inline-start: 0; justify-content: flex-start; }
+  .puredashboard-gallery__canvas { padding: 16px; }
+  /* the per-card viewport switch goes icon-only; the text stays as the accessible name */
+  .puredashboard-gallery__vp .puredashboard-segmented__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* index: every component as a card, grouped like the sidebar */
+.puredashboard-gallery__index { display: grid; gap: 28px; }
+.puredashboard-gallery__index-heading { margin: 0 0 10px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--pd-muted); }
+.puredashboard-gallery__index-count { margin-inline-start: 6px; font-weight: 500; color: var(--pd-faint); }
+.puredashboard-gallery__index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.puredashboard-gallery__index-card {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 14px 16px; color: inherit; text-decoration: none;
+  background: var(--pd-panel); border: 1px solid var(--pd-border); border-radius: var(--radius, 10px);
+  transition: border-color var(--duration-fast, 120ms), background var(--duration-fast, 120ms);
+}
+.puredashboard-gallery__index-card:hover { border-color: var(--pd-accent); background: var(--pd-panel-2); }
+.puredashboard-gallery__index-card:focus-visible { outline: none; box-shadow: var(--focus-ring, 0 0 0 3px color-mix(in srgb, Highlight 40%, transparent)); }
+.puredashboard-gallery__index-name { font-weight: 600; }
+.puredashboard-gallery__index-meta { font-size: 12px; color: var(--pd-muted); }
+.puredashboard-gallery__index-desc { font-size: 12px; color: var(--pd-faint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* a story panel */
+.puredashboard-gallery__story { border: 1px solid var(--pd-border); border-radius: var(--radius, 10px); overflow: hidden; }
+.puredashboard-gallery__bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--pd-panel); border-bottom: 1px solid var(--pd-border); font-size: 13px; }
+.puredashboard-gallery__name { font-weight: 600; }
+.puredashboard-gallery__notes { color: var(--pd-muted); font-size: 12px; }
+/* stages use the PANEL surface (like a real card) so subtle things — skeletons,
+ * borders, --panel-2 fills — have contrast instead of vanishing into the page bg. */
+.puredashboard-gallery__stage { padding: 28px; background: var(--pd-panel); }
+
+/* overview / contact sheet */
+.puredashboard-gallery__overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+.puredashboard-gallery__cell { border: 1px solid var(--pd-border); border-radius: var(--radius, 10px); overflow: hidden; }
+.puredashboard-gallery__cell-label { padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--pd-muted); background: var(--pd-panel); border-bottom: 1px solid var(--pd-border); }
+.puredashboard-gallery__cell-stage { padding: 20px; min-height: 96px; display: flex; align-items: center; background: var(--pd-panel); }
+
+.puredashboard-gallery__empty { padding: 40px; color: var(--pd-muted); }
+
+/* a story staged in its own viewport (`viewport: { width, height }`): the iframe sits
+ * centred on the panel-2 surface like a device on a desk; inside the frame (`only`
+ * mode) the story fills it edge to edge. */
+.puredashboard-gallery__viewport { font-size: 12px; color: var(--pd-muted); font-variant-numeric: tabular-nums; }
+/* per-card viewport switch (a <puredashboard-segmented>: Auto · Phone · Tablet · Desktop
+ * with icons), pushed to the bar's end */
+.puredashboard-gallery__vp { margin-inline-start: auto; flex: none; }
+.puredashboard-gallery__bar { flex-wrap: wrap; }
+.puredashboard-gallery__stage--viewport { padding: 20px; display: flex; justify-content: center; overflow: auto; background: var(--pd-panel-2); }
+.puredashboard-gallery__frame { display: block; flex: none; max-width: 100%; border: 1px solid var(--pd-border); border-radius: 12px; background: var(--pd-bg); }
+.puredashboard-gallery__story--fill { border: 0; border-radius: 0; }
+.puredashboard-gallery__story--fill .puredashboard-gallery__bar { display: none; }
+/* inside a viewport frame the story should fill the device: stories size their demo
+ * frames with var(--pb-frame-h, <px>) etc., so these take over only here. */
+.puredashboard-gallery__stage--fill { padding: 0; min-height: 100vh; --pb-frame-h: 100vh; --pb-frame-border: 0; --pb-frame-radius: 0; }
+puredashboard-gallery:has(> .puredashboard-gallery__only > .puredashboard-gallery__story--fill) > .puredashboard-gallery__only { padding: 0; }
+.puredashboard-gallery__err { margin: 0; color: var(--red, #dc2626); font-size: 12px; white-space: pre-wrap; }

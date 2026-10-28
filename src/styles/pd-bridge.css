@@ -1,0 +1,22 @@
+/* Bridge: map our design tokens to PureDashboard's semantic tokens so both
+   systems share one palette. Load after tokens.css, before PureDashboard theme. */
+:root {
+  --bg: var(--color-canvas);
+  --panel: var(--color-surface);
+  --panel-2: var(--color-surface-raised);
+  --panel-3: var(--color-surface-hover);
+  --border: var(--color-border);
+  --border-2: var(--color-border-strong);
+  --text: var(--color-text);
+  --muted: var(--color-text-muted);
+  --accent: var(--color-accent);
+  --accent-hover: var(--color-accent-hover);
+  --sans: var(--font-ui);
+  --mono: var(--font-mono);
+  --success: var(--color-success);
+  --warn: var(--color-warn);
+  --error: var(--color-error);
+  --radius: var(--radius-panel);
+  --radius-sm: var(--radius-control);
+  --shadow: var(--shadow-card);
+}

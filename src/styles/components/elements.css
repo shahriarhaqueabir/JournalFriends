@@ -1,0 +1,261 @@
+/* ════════════════════════════════════════════════════════════
+   Custom elements (light-DOM, token-driven) + micro-interactions.
+   Loaded after tokens/components. No hardcoded colors — the design
+   guard enforces this (D-150 / premium UI system, 2026-10-23).
+   ════════════════════════════════════════════════════════════ */
+
+/* ── <hj-icon> ─────────────────────────────────────────────── */
+hj-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size, 20px);
+  height: var(--icon-size, 20px);
+  flex: 0 0 auto;
+  color: inherit;
+  line-height: 0;
+}
+hj-icon svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  overflow: visible;
+}
+hj-icon[data-tone="accent"] { --icon-primary: var(--color-accent); --icon-secondary: var(--color-text); }
+hj-icon[data-tone="success"] { --icon-primary: var(--color-success); --icon-secondary: var(--color-success); }
+hj-icon[data-tone="warn"] { --icon-primary: var(--color-warn); --icon-secondary: var(--color-warn); }
+hj-icon[data-tone="error"] { --icon-primary: var(--color-error); --icon-secondary: var(--color-error); }
+hj-icon[data-tone="muted"] { --icon-primary: var(--color-text-muted); --icon-secondary: var(--color-text-subtle); }
+hj-icon[data-tone="blue"] { --icon-primary: var(--color-cat-blue); --icon-secondary: var(--color-cat-blue); }
+hj-icon[data-tone="purple"] { --icon-primary: var(--color-cat-purple); --icon-secondary: var(--color-cat-purple); }
+hj-icon[data-tone="amber"] { --icon-primary: var(--color-cat-amber); --icon-secondary: var(--color-cat-amber); }
+hj-icon[data-tone="rose"] { --icon-primary: var(--color-cat-rose); --icon-secondary: var(--color-cat-rose); }
+
+/* Hover trigger: any ancestor marked .hj-icon-host, or any native interactive
+   element (button / a / .menu-item / .nav-item), animates its icons. */
+.hj-icon-host:hover hj-icon .hjai,
+.hj-icon-host:focus-visible hj-icon .hjai,
+button:hover hj-icon .hjai,
+button:focus-visible hj-icon .hjai,
+a:hover hj-icon .hjai,
+.nav-item:hover hj-icon .hjai,
+.menu-item:hover hj-icon .hjai,
+hj-button:hover hj-icon .hjai,
+hj-card[interactive]:hover hj-icon .hjai,
+hj-chip[interactive]:hover hj-icon .hjai,
+hj-icon[animate="always"] .hjai { transform: var(--icon-hover-transform, scale(1.12)); }
+
+/* ── <hj-button> ───────────────────────────────────────────── */
+hj-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  height: var(--control-h);
+  min-width: var(--control-h);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  color: var(--color-text);
+  box-shadow: var(--elev-0);
+  transition: background-color var(--dur-hover) var(--ease),
+              border-color var(--dur-hover) var(--ease),
+              color var(--dur-hover) var(--ease),
+              box-shadow var(--dur-hover) var(--ease),
+              transform var(--dur-hover) var(--ease),
+              filter var(--dur-hover) var(--ease);
+}
+hj-button:hover { background: rgba(18, 21, 31, 0.60); border-color: var(--color-text-subtle); }
+hj-button[hidden] { display: none; }
+hj-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+hj-button:active { transform: scale(0.97); }
+hj-button[disabled],
+hj-button[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+
+hj-button[size="sm"] { height: var(--icon-btn); padding: 0 var(--space-8); font-size: var(--fs-caption); }
+hj-button[variant="primary"] {
+  background: var(--gradient-accent);
+  color: var(--color-on-accent);
+  border-color: transparent;
+  box-shadow: var(--shadow-glow);
+}
+hj-button[variant="primary"]:hover { filter: brightness(1.08); box-shadow: var(--elev-2); transform: translateY(-1px); }
+hj-button[variant="secondary"] { border-color: var(--color-border-control); }
+hj-button[variant="secondary"]:hover,
+hj-button[variant="ghost"]:hover { background: rgba(18, 21, 31, 0.60); border-color: var(--color-text-subtle); }
+hj-button[variant="danger"] { border-color: var(--color-error); color: var(--color-error); }
+hj-button[variant="danger"]:hover { background: var(--color-error-soft); }
+
+/* ── <hj-card> ─────────────────────────────────────────────── */
+hj-card {
+  display: block;
+  padding: var(--space-16);
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: box-shadow var(--dur-hover) var(--ease),
+              transform var(--dur-hover) var(--ease),
+              border-color var(--dur-hover) var(--ease);
+}
+hj-card[elevation="0"] { box-shadow: var(--elev-0); }
+hj-card[elevation="2"] { box-shadow: var(--elev-2); }
+hj-card[elevation="3"] { box-shadow: var(--elev-3); }
+hj-card[interactive] { cursor: pointer; }
+hj-card[interactive]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: var(--color-border-strong);
+}
+hj-card[accent] { border-color: var(--accent-border); box-shadow: var(--elev-1), var(--accent-glow); }
+
+/* ── <hj-metric-card> ──────────────────────────────────────── */
+hj-metric-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: box-shadow var(--dur-hover) var(--ease), transform var(--dur-hover) var(--ease);
+}
+hj-metric-card:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
+hj-metric-card .metric-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-control);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+hj-metric-card .metric-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+hj-metric-card .metric-value {
+  font-size: var(--fs-subtitle);
+  line-height: var(--lh-subtitle);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+hj-metric-card .metric-label {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--color-text-muted);
+}
+
+/* ── <hj-chip> / <hj-badge> ────────────────────────────────── */
+hj-chip,
+hj-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--icon-btn);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-chip);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+hj-badge { height: 20px; padding: 0 var(--space-6); border-color: transparent; }
+hj-chip[tone="accent"], hj-badge[tone="accent"] { color: var(--color-accent); background: var(--color-accent-soft); border-color: transparent; }
+hj-chip[tone="success"], hj-badge[tone="success"] { color: var(--color-success); background: var(--color-success-soft); border-color: transparent; }
+hj-chip[tone="warn"], hj-badge[tone="warn"] { color: var(--color-warn); background: var(--color-warn-soft); border-color: transparent; }
+hj-chip[tone="error"], hj-badge[tone="error"] { color: var(--color-error); background: var(--color-error-soft); border-color: transparent; }
+hj-chip[interactive] { cursor: pointer; transition: border-color var(--dur-hover) var(--ease), color var(--dur-hover) var(--ease), background-color var(--dur-hover) var(--ease); }
+hj-chip[interactive]:hover { color: var(--color-text); border-color: var(--color-text-subtle); }
+
+/* ── <hj-field> ────────────────────────────────────────────── */
+hj-field { display: flex; flex-direction: column; gap: var(--space-6); }
+hj-field > label { font-size: var(--fs-body); color: var(--color-text); }
+hj-field .hj-field-help { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--color-text-muted); }
+hj-field .hj-field-error { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--color-error); }
+
+/* ── <hj-empty-state> ──────────────────────────────────────── */
+hj-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-12);
+  padding: var(--space-40);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--fs-body);
+}
+hj-empty-state .hj-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-panel);
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  box-shadow: var(--elev-1);
+  color: var(--color-text-subtle);
+}
+hj-empty-state .hj-empty-title { color: var(--color-text); font-weight: 600; }
+
+/* ── <hj-panel> (chrome/overlay — glass allowed here) ──────── */
+hj-panel {
+  display: block;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--elev-3);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* ── Micro-interaction utilities ───────────────────────────── */
+.hj-lift { transition: transform var(--dur-hover) var(--ease), box-shadow var(--dur-hover) var(--ease); }
+.hj-lift:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
+.hj-press { transition: transform var(--dur-instant) var(--ease); }
+.hj-press:active { transform: scale(0.97); }
+
+/* View mount: tab cross-fade + list stagger. */
+.tab-view.active { animation: hj-view-in var(--dur-tab) var(--ease-out) both; }
+@keyframes hj-view-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.hj-stagger > * { animation: hj-item-in var(--dur-enter) var(--ease-out) both; }
+.hj-stagger > *:nth-child(1) { animation-delay: calc(var(--dur-stagger) * 0); }
+.hj-stagger > *:nth-child(2) { animation-delay: calc(var(--dur-stagger) * 1); }
+.hj-stagger > *:nth-child(3) { animation-delay: calc(var(--dur-stagger) * 2); }
+.hj-stagger > *:nth-child(4) { animation-delay: calc(var(--dur-stagger) * 3); }
+.hj-stagger > *:nth-child(5) { animation-delay: calc(var(--dur-stagger) * 4); }
+.hj-stagger > *:nth-child(6) { animation-delay: calc(var(--dur-stagger) * 5); }
+.hj-stagger > *:nth-child(n + 7) { animation-delay: calc(var(--dur-stagger) * 6); }
+@keyframes hj-item-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Metric count-up pop. */
+.hj-count-pop { animation: hj-count-pop var(--dur-enter) var(--ease-spring); }
+@keyframes hj-count-pop { from { transform: scale(0.9); } to { transform: none; } }
+
+/* ── Layout primitives ─────────────────────────────────────── */
+.hj-stack { display: flex; flex-direction: column; }
+.hj-stack > * + * { margin-top: var(--hj-gap, var(--space-12)); }
+.hj-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hj-gap, var(--space-8)); }
+.hj-split { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
+.hj-grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--hj-min, 200px), 1fr)); gap: var(--hj-gap, var(--space-12)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-view.active,
+  .hj-stagger > *,
+  .hj-count-pop { animation: none; }
+}

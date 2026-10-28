@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-hidden="true" focusable="false">
+<title>calendar</title>
+<style>
+.hjai{color:var(--icon-primary,currentColor)}
+.hjai-p{stroke:var(--icon-primary,currentColor)}
+.hjai-a{stroke:var(--icon-secondary,var(--color-accent,#4FD1C5))}
+.hjai{transition:transform .18s cubic-bezier(.16,1,.3,1)}.hjai-host:hover .hjai{transform:scale(1.12)}
+@media (prefers-reduced-motion: reduce){.hjai,.hjai-host:hover .hjai{transition:none;animation:none}}
+</style>
+<g class="hjai">
+<path class="hjai-p" d="M8 2v4"/>
+<path class="hjai-a" d="M16 2v4"/>
+<path class="hjai-a" d="M3 10h18"/>
+<path class="hjai-a" d="M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+</g>
+</svg>

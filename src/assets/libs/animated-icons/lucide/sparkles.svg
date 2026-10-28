@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-hidden="true" focusable="false">
+<title>sparkles</title>
+<style>
+.hjai{color:var(--icon-primary,currentColor)}
+.hjai-p{stroke:var(--icon-primary,currentColor)}
+.hjai-a{stroke:var(--icon-secondary,var(--color-accent,#4FD1C5))}
+.hjai{transition:transform .24s cubic-bezier(.34,1.56,.64,1)}.hjai-host:hover .hjai{transform:rotate(-8deg) scale(1.12)}
+@media (prefers-reduced-motion: reduce){.hjai,.hjai-host:hover .hjai{transition:none;animation:none}}
+</style>
+<g class="hjai">
+<path class="hjai-p" d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/>
+<path class="hjai-a" d="M5 3v4"/>
+<path class="hjai-a" d="M3 5h4"/>
+<path class="hjai-a" d="M19 17v4"/>
+<path class="hjai-a" d="M17 19h4"/>
+</g>
+</svg>

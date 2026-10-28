@@ -1,0 +1,12 @@
+{
+  "identifier": "main-capability",
+  "description": "Default permissions for the Arnold application.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    "dialog:default",
+    "dialog:allow-confirm",
+    "notification:default"
+  ]
+}

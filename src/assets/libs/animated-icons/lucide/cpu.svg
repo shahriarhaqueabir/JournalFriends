@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-hidden="true" focusable="false">
+<title>cpu</title>
+<style>
+.hjai{color:var(--icon-primary,currentColor)}
+.hjai-p{stroke:var(--icon-primary,currentColor)}
+.hjai-a{stroke:var(--icon-secondary,var(--color-accent,#4FD1C5))}
+.hjai{transition:transform .24s cubic-bezier(.16,1,.3,1)}.hjai-host:hover .hjai{transform:rotate(18deg)}
+@media (prefers-reduced-motion: reduce){.hjai,.hjai-host:hover .hjai{transition:none;animation:none}}
+</style>
+<g class="hjai">
+<path class="hjai-p" d="M6 6h12v12H6z"/>
+<path class="hjai-a" d="M9 2v2"/>
+<path class="hjai-a" d="M15 2v2"/>
+<path class="hjai-a" d="M9 20v2"/>
+<path class="hjai-a" d="M15 20v2"/>
+<path class="hjai-a" d="M2 9h2"/>
+<path class="hjai-a" d="M2 15h2"/>
+<path class="hjai-a" d="M20 9h2"/>
+<path class="hjai-a" d="M20 15h2"/>
+</g>
+</svg>

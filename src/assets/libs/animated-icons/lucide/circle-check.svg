@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-hidden="true" focusable="false">
+<title>circle-check</title>
+<style>
+.hjai{color:var(--icon-primary,currentColor)}
+.hjai-p{stroke:var(--icon-primary,currentColor)}
+.hjai-a{stroke:var(--icon-secondary,var(--color-accent,#4FD1C5))}
+.hjai{transition:transform .18s cubic-bezier(.16,1,.3,1)}.hjai-host:hover .hjai{transform:scale(1.1)}
+@media (prefers-reduced-motion: reduce){.hjai,.hjai-host:hover .hjai{transition:none;animation:none}}
+</style>
+<g class="hjai">
+<path class="hjai-p" d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/>
+<path class="hjai-a" d="m9 12 2 2 4-4"/>
+</g>
+</svg>

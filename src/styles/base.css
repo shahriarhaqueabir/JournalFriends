@@ -1,0 +1,189 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Painterly wash layer (overlays the background image or canvas) */
+#bg-wash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    var(--gradient-ambient),
+    linear-gradient(118deg, transparent 0%, rgba(91, 141, 239, 0.05) 38%, transparent 72%),
+    linear-gradient(203deg, transparent 0%, rgba(155, 143, 232, 0.04) 44%, transparent 78%),
+    linear-gradient(301deg, transparent 0%, rgba(232, 184, 74, 0.04) 30%, transparent 66%),
+    linear-gradient(12deg, transparent 0%, rgba(232, 143, 168, 0.035) 52%, transparent 84%),
+    repeating-linear-gradient(0deg, rgba(40, 55, 90, 0.012) 0px, rgba(40, 55, 90, 0.012) 1px, transparent 1px, transparent 3px),
+    repeating-linear-gradient(90deg, rgba(40, 55, 90, 0.010) 0px, rgba(40, 55, 90, 0.010) 1px, transparent 1px, transparent 3px);
+  opacity: 1;
+  transition: opacity var(--dur-overlay) var(--ease);
+}
+
+/* When a background image is active, let it show through */
+html.has-bg-image,
+body.has-bg-image {
+  background: transparent;
+}
+body.has-bg-image #left-sidebar,
+body.has-bg-image #main-content,
+body.has-bg-image .journal-list-panel,
+body.has-bg-image .tasks-header,
+body.has-bg-image .calendar-view {
+  background: rgba(18, 21, 31, 0.60);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+a:hover { text-decoration: underline; }
+
+button, input, select, textarea {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--color-text);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-radius: var(--radius-control);
+  transition: color var(--dur-hover) var(--ease),
+              background-color var(--dur-hover) var(--ease),
+              border-color var(--dur-hover) var(--ease);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-cat-blue), var(--color-cat-purple));
+  border-radius: var(--radius-panel);
+  border: 2px solid var(--color-canvas);
+  opacity: 0.7;
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--color-accent), var(--color-cat-rose)); }
+
+#bg-layer { position: fixed; inset: 0; pointer-events: none; z-index: -3; }
+#bg-scrim { position: fixed; inset: 0; pointer-events: none; z-index: -1; }
+#bg-layer {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity var(--dur-overlay) var(--ease);
+}
+#bg-layer.active { opacity: 1; }
+#bg-scrim {
+  background: rgba(0, 0, 0, 1);
+  opacity: 0;
+  transition: opacity var(--dur-overlay) var(--ease);
+}
+#bg-scrim.active { opacity: 1; }
+
+.hidden { display: none !important; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── UTILITIES (moved to components.css in Task 3) ─────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  text-align: center;
+  gap: var(--space-12);
+  padding: var(--space-40);
+}
+
+.empty-state-icon {
+  font-size: 40px;
+  opacity: 0.5;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--color-border);
+  border-top: 3px solid var(--color-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@media (forced-colors: active) {
+  * { forced-color-adjust: auto; }
+  :focus-visible { outline: 2px solid CanvasText; }
+}
+
+/* Glassmorphic surfaces: let the background show through */
+hj-card, hj-metric-card, .task-card, .detail-panel, .memory-detail-panel,
+.memory-form-card, .inbox-panel, .onboarding-card, .persona-lightbox-card,
+.vault-card, .sys-section, .analysis-card, .ai-proposal-card,
+.insight-metric-card, .insight-reflection-box, .thinking-panel,
+.journal-list-panel, .journal-list-header, .journal-page-header,
+.ai-header, .sidebar-header, .calendar-header, .insights-main-header,
+.memory-header, .panel-header, .settings-header, .settings-section-header,
+.mood-header, .sys-header, .tasks-header, .tag-group-header, .column-header,
+.inbox-item, .memory-card, .memory-sidebar-section, .onboarding-card {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

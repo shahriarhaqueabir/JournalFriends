@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-hidden="true" focusable="false">
+<title>lock</title>
+<style>
+.hjai{color:var(--icon-primary,currentColor)}
+.hjai-p{stroke:var(--icon-primary,currentColor)}
+.hjai-a{stroke:var(--icon-secondary,var(--color-accent,#4FD1C5))}
+.hjai{transition:transform .18s cubic-bezier(.34,1.56,.64,1)}.hjai-host:hover .hjai{transform:translateY(-2px)}
+@media (prefers-reduced-motion: reduce){.hjai,.hjai-host:hover .hjai{transition:none;animation:none}}
+</style>
+<g class="hjai">
+<path class="hjai-p" d="M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z"/>
+<path class="hjai-a" d="M7 11V7a5 5 0 0 1 10 0v4"/>
+</g>
+</svg>

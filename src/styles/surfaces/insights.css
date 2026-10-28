@@ -1,0 +1,279 @@
+/* ── INSIGHTS PAGE (TOP-LEVEL TAB) ─────────────── */
+
+.insights-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-24) var(--space-32);
+  background: radial-gradient(ellipse at top, rgba(251, 191, 36, 0.08) 0%, transparent 60%);
+}
+
+.insights-page-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.insights-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-16) var(--space-12);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--gradient-card);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--elev-1);
+  margin-bottom: var(--space-8);
+}
+
+.insights-header-greet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.greeting-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--gradient-accent);
+  border: 0;
+  border-radius: var(--radius-panel);
+  color: var(--color-on-accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.greeting-text h1 {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.greeting-text p {
+  color: var(--color-text-muted);
+  font-size: var(--fs-meta);
+}
+
+.insights-header-meta .date-chip {
+  padding: var(--space-4) var(--space-12);
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  font-size: var(--fs-caption);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Banner Quote Card */
+.insights-quote-banner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 120px;
+  padding: var(--space-24);
+  background: var(--gradient-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+}
+
+.insights-quote-banner::before {
+  content: "“";
+  position: absolute;
+  top: -20px;
+  right: 16px;
+  font-family: var(--font-serif);
+  font-size: 160px;
+  line-height: 1;
+  color: var(--color-accent-soft);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.insights-quote-banner .quote-content { position: relative; z-index: 1; }
+
+.quote-content {
+  max-width: 600px;
+  z-index: 2;
+}
+
+.quote-text {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: var(--space-6);
+  font-style: italic;
+}
+
+.quote-author {
+  font-size: var(--fs-caption);
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Tab Sections */
+.insights-tab-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* When a section is an <hj-card>, the component provides surface/padding;
+   keep the amber accent rail for identity and lay out its content. */
+hj-card.insights-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-20);
+  border-top: 2px solid var(--color-cat-amber);
+}
+
+.insights-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-20);
+}
+
+@media (max-width: 900px) {
+  .insights-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.insights-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.insights-help {
+  color: var(--color-text-subtle);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+/* Metrics Grid */
+.insights-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-16);
+}
+
+@media (max-width: 800px) {
+  .insights-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.insight-metric-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-16);
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-popover), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: border-color var(--dur-hover) var(--ease), background-color var(--dur-hover) var(--ease), transform var(--dur-hover) var(--ease);
+}
+
+/* (legacy .insight-metric-card retained for hidden/other views) */
+
+.metric-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-accent);
+  flex: none;
+}
+
+.metric-icon-wrap--blue { background: var(--color-cat-blue-soft); color: var(--color-cat-blue); border-color: var(--color-cat-blue); }
+.metric-icon-wrap--purple { background: var(--color-cat-purple-soft); color: var(--color-cat-purple); border-color: var(--color-cat-purple); }
+.metric-icon-wrap--amber { background: var(--color-cat-amber-soft); color: var(--color-cat-amber); border-color: var(--color-cat-amber); }
+.metric-icon-wrap--rose { background: var(--color-cat-rose-soft); color: var(--color-cat-rose); border-color: var(--color-cat-rose); }
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.insight-metric-card .metric-value {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.insight-metric-card .metric-label {
+  font-size: var(--fs-caption);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Forms & Reflection */
+.insights-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.insights-form-group label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.insights-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: var(--space-8);
+}
+
+.insight-reflection-box {
+  padding: var(--space-16);
+  background: var(--gradient-card), rgba(18, 21, 31, 0.60);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  color: var(--color-text);
+  min-height: 140px;
+}
+
+.insight-reflection-box p {
+  margin: 0 0 var(--space-10);
+}
+
+.insight-reflection-box p:last-child {
+  margin-bottom: 0;
+}
+
+.reflection-empty {
+  color: var(--color-text-subtle);
+  font-style: italic;
+  font-size: var(--fs-meta);
+}

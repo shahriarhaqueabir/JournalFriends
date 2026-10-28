@@ -1,0 +1,31 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Check build
+        run: cargo check
+
+  frontend:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate JavaScript syntax
+        shell: pwsh
+        run: |
+          Get-ChildItem src\js -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }

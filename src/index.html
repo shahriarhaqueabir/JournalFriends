@@ -1,0 +1,1611 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arnold</title>
+    <link rel="stylesheet" href="styles/tokens.css" />
+    <link
+      rel="stylesheet"
+      href="assets/libs/puredashboard/theme/dashboard.css"
+    />
+    <link rel="stylesheet" href="assets/libs/puredashboard/theme/native.css" />
+    <link rel="stylesheet" href="styles/pd-bridge.css" />
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/layout.css" />
+    <link rel="stylesheet" href="styles/toast.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+    <link rel="stylesheet" href="styles/components/elements.css" />
+    <link rel="stylesheet" href="styles/surfaces/journal.css" />
+    <link rel="stylesheet" href="styles/surfaces/assistant.css" />
+    <link rel="stylesheet" href="styles/surfaces/tasks.css" />
+    <link rel="stylesheet" href="styles/surfaces/calendar.css" />
+    <link rel="stylesheet" href="styles/memory.css" />
+    <link rel="stylesheet" href="styles/surfaces/mood.css" />
+    <link rel="stylesheet" href="styles/surfaces/insights.css" />
+    <link rel="stylesheet" href="styles/surfaces/system.css" />
+    <link rel="stylesheet" href="styles/surfaces/settings.css" />
+    <link rel="stylesheet" href="styles/surfaces/overlays.css" />
+    <script src="assets/libs/chart.umd.min.js"></script>
+    <script src="assets/libs/lucide.min.js"></script>
+    <script src="assets/libs/Sortable.min.js"></script>
+  </head>
+  <body>
+    <div id="bg-layer" aria-hidden="true"></div>
+    <div id="bg-wash" aria-hidden="true"></div>
+    <div id="bg-scrim" aria-hidden="true"></div>
+    <div id="left-sidebar">
+      <div class="app-brand">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div class="brand-text">
+          <div class="brand-name">Arnold</div>
+          <div class="brand-tag">Private journal + local AI</div>
+        </div>
+        <button
+          id="btn-toggle-left"
+          class="icon-btn"
+          aria-label="Collapse sidebar"
+          aria-expanded="true"
+          title="Collapse sidebar"
+        >
+          <hj-icon name="chevron-left" size="16" aria-hidden="true"></hj-icon>
+        </button>
+      </div>
+      <nav class="nav-menu">
+        <div class="nav-section-label">Workspace</div>
+        <button
+          class="nav-item active nav-item--journal"
+          data-tab="journal"
+          aria-current="page"
+        >
+          <hj-icon name="book-open" size="18" aria-hidden="true"></hj-icon
+          ><span>Journal</span>
+        </button>
+        <button class="nav-item nav-item--tasks" data-tab="tasks">
+          <hj-icon name="list-checks" size="18" aria-hidden="true"></hj-icon
+          ><span>Tasks</span>
+        </button>
+        <button class="nav-item nav-item--mood" data-tab="mood">
+          <hj-icon name="heart-pulse" size="18" aria-hidden="true"></hj-icon
+          ><span>Mood</span>
+        </button>
+        <button class="nav-item nav-item--insights" data-tab="insights">
+          <hj-icon name="bar-chart-3" size="18" aria-hidden="true"></hj-icon
+          ><span>Insights</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-actions">
+          <button
+            class="nav-item nav-item--system"
+            data-tab="system"
+            aria-label="System"
+          >
+            <hj-icon name="server" size="16" aria-hidden="true"></hj-icon
+            ><span>System</span>
+          </button>
+          <button
+            class="nav-item nav-item--settings"
+            data-tab="settings"
+            aria-label="Settings"
+          >
+            <hj-icon name="settings" size="16" aria-hidden="true"></hj-icon
+            ><span>Settings</span>
+          </button>
+        </div>
+        <div id="engine-status" class="status-row">
+          <span id="engine-dot" class="status-dot"></span>
+          <span class="status-label">AI Engine</span>
+          <span id="engine-status-value" class="status-value">Checking…</span>
+        </div>
+        <div class="status-row">
+          <span class="status-dot ok"></span>
+          <span class="status-label">Storage</span>
+          <span id="db-path" class="status-value">./data/arnold.db</span>
+        </div>
+        <div id="app-version" class="version-chip">v0.1.0</div>
+      </div>
+    </div>
+
+    <main id="main-content">
+      <div id="tab-inbox" class="tab-view">
+        <div class="empty-state">
+          <div class="loading-spinner"></div>
+          <p>Loading your inbox...</p>
+        </div>
+      </div>
+      <div id="tab-about" class="tab-view">
+        <!-- About view will be loaded here -->
+      </div>
+      <div id="tab-journal" class="tab-view active">
+        <div class="journal-view-layout">
+          <aside class="journal-list-panel" aria-label="Journal Entries">
+            <div class="journal-list-header">
+              <hj-button variant="primary" id="btn-new-entry"
+                >+ New Entry</hj-button
+              >
+            </div>
+            <div id="journal-entry-list" class="entry-list">
+              <div class="entry-list-empty">
+                <p>No entries yet. Start with today.</p>
+              </div>
+            </div>
+          </aside>
+
+          <section class="journal-page" aria-label="Journal Page">
+            <header class="journal-page-header">
+              <div class="journal-page-heading">
+                <input
+                  type="text"
+                  id="journal-title"
+                  placeholder="Untitled Entry"
+                  aria-label="Entry title"
+                />
+              </div>
+              <div class="journal-page-actions">
+                <hj-button
+                  variant="ghost"
+                  id="btn-analyze"
+                  title="Analyze with AI"
+                >
+                  <hj-icon
+                    name="sparkles"
+                    size="16"
+                    aria-hidden="true"
+                  ></hj-icon
+                  ><span>Analyze</span>
+                </hj-button>
+                <div class="menu-wrap">
+                  <button
+                    id="btn-entry-menu"
+                    class="icon-btn"
+                    aria-label="Entry options"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    title="Entry options"
+                  >
+                    <hj-icon
+                      name="more-horizontal"
+                      size="16"
+                      aria-hidden="true"
+                    ></hj-icon>
+                  </button>
+                  <div id="entry-menu" class="menu hidden" role="menu">
+                    <button
+                      id="btn-delete-entry"
+                      class="menu-item danger"
+                      role="menuitem"
+                    >
+                      <hj-icon
+                        name="trash-2"
+                        size="16"
+                        aria-hidden="true"
+                      ></hj-icon
+                      ><span>Move to Trash</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </header>
+            <div class="journal-editor-body">
+              <textarea
+                id="journal-editor"
+                placeholder="Start writing your thoughts..."
+                aria-label="Journal entry"
+              ></textarea>
+            </div>
+            <footer class="journal-page-footer">
+              <span id="word-count">0 words</span>
+              <span id="save-status">Ready</span>
+            </footer>
+            <input type="hidden" id="current-entry-id" value="" />
+          </section>
+        </div>
+      </div>
+      <div id="tab-tasks" class="tab-view">
+        <div class="tasks-view-layout">
+          <header class="tasks-header">
+            <div class="tasks-header-top">
+              <h2 class="tasks-title">Tasks</h2>
+              <div class="tasks-header-actions">
+                <div class="task-search-box">
+                  <input
+                    type="text"
+                    id="task-search"
+                    placeholder="Search tasks…"
+                    aria-label="Search tasks"
+                  />
+                </div>
+                <hj-button variant="primary" id="btn-new-task"
+                  >New task</hj-button
+                >
+              </div>
+            </div>
+            <div class="tasks-toolbar">
+              <div
+                class="segmented task-view-toggle"
+                role="group"
+                aria-label="Task view"
+              >
+                <button class="view-tab" data-view="list" aria-pressed="false">
+                  List
+                </button>
+                <button
+                  class="view-tab active"
+                  data-view="board"
+                  aria-pressed="true"
+                >
+                  Board
+                </button>
+                <button
+                  class="view-tab"
+                  data-view="calendar"
+                  aria-pressed="false"
+                >
+                  Calendar
+                </button>
+              </div>
+              <div
+                class="segmented task-tabs"
+                role="group"
+                aria-label="Task filter"
+              >
+                <button
+                  class="task-tab active"
+                  data-filter="all"
+                  aria-pressed="true"
+                >
+                  All
+                </button>
+                <button
+                  class="task-tab"
+                  data-filter="pending"
+                  aria-pressed="false"
+                >
+                  Pending
+                </button>
+                <button
+                  class="task-tab"
+                  data-filter="completed"
+                  aria-pressed="false"
+                >
+                  Completed
+                </button>
+              </div>
+              <div
+                class="segmented view-toggler"
+                role="group"
+                aria-label="Board scope"
+              >
+                <button
+                  class="board-tab active"
+                  data-board="inprogress"
+                  aria-pressed="true"
+                >
+                  In Progress
+                </button>
+                <button
+                  class="board-tab"
+                  data-board="completed"
+                  aria-pressed="false"
+                >
+                  Completed
+                </button>
+              </div>
+            </div>
+          </header>
+          <div id="task-list-items" class="task-items-container hidden">
+            <div class="state-empty">
+              Your task list is clear. Use AI to extract tasks from your
+              journal.
+            </div>
+          </div>
+          <div id="task-kanban-board" class="kanban-container"></div>
+          <div id="task-calendar" class="calendar-container hidden"></div>
+        </div>
+
+        <!-- Task Detail Slide-in Panel -->
+        <aside
+          id="task-detail-panel"
+          class="detail-panel hidden"
+          aria-label="Task Details"
+        >
+          <header class="panel-header">
+            <h3>Task Details</h3>
+            <button
+              id="btn-close-task-detail"
+              class="icon-btn"
+              aria-label="Close task details"
+            >
+              <hj-icon name="x" size="16" aria-hidden="true"></hj-icon>
+            </button>
+          </header>
+          <div class="panel-content">
+            <input type="hidden" id="detail-task-id" />
+            <div class="form-group">
+              <label for="detail-task-title">Title</label>
+              <input
+                type="text"
+                id="detail-task-title"
+                placeholder="What needs to be done?"
+              />
+            </div>
+            <div class="form-group">
+              <label for="detail-task-desc">Description</label>
+              <textarea
+                id="detail-task-desc"
+                rows="4"
+                placeholder="Add details..."
+              ></textarea>
+            </div>
+
+            <div id="subtasks-section" class="form-group hidden">
+              <label>Subtasks</label>
+              <div id="subtask-list" class="subtask-mini-list"></div>
+              <hj-button variant="ghost" size="sm" id="btn-add-subtask"
+                >+ Add Subtask</hj-button
+              >
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="detail-task-priority">Priority</label>
+                <select id="detail-task-priority" title="Task Priority">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="detail-task-status">Status</label>
+                <select id="detail-task-status" title="Task Status">
+                  <option value="todo">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="done">Done</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="detail-task-date">Due Date</label>
+                <input type="date" id="detail-task-date" title="Due Date" />
+              </div>
+              <div class="form-group">
+                <label for="detail-task-tag">Tag</label>
+                <input
+                  type="text"
+                  id="detail-task-tag"
+                  placeholder="Tag (e.g. Work, Personal)"
+                />
+              </div>
+            </div>
+            <div id="dependencies-section" class="form-group">
+              <label>Dependencies (Blocks this task)</label>
+              <div id="dependency-list" class="dependency-mini-list"></div>
+              <div class="dependency-add-row">
+                <input
+                  type="text"
+                  id="dependency-search"
+                  placeholder="Search task to add..."
+                />
+                <div
+                  id="dependency-search-results"
+                  class="mini-search-results hidden"
+                ></div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="detail-task-recurrence">Recurrence</label>
+              <select id="detail-task-recurrence">
+                <option value="">None</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
+          <footer class="panel-footer">
+            <hj-button variant="danger" id="btn-delete-task">Delete</hj-button>
+            <hj-button variant="primary" id="btn-save-task"
+              >Save Changes</hj-button
+            >
+          </footer>
+        </aside>
+      </div>
+      <div id="tab-insights" class="tab-view">
+        <div class="insights-page">
+          <div class="insights-page-inner">
+            <header class="insights-main-header">
+              <div class="insights-header-greet">
+                <span class="greeting-icon"
+                  ><hj-icon name="sun" size="16" aria-hidden="true"></hj-icon
+                ></span>
+                <div class="greeting-text">
+                  <h1 id="insights-user-greeting">Welcome to Insights</h1>
+                  <p>Your thoughts. Your progress. Your journey.</p>
+                </div>
+              </div>
+              <div class="insights-header-meta">
+                <span id="insights-current-date" class="date-chip"></span>
+              </div>
+            </header>
+
+            <!-- Banner Quote Card -->
+            <div class="insights-quote-banner">
+              <div class="quote-content">
+                <p class="quote-text">
+                  “Discipline is just self-respect in action.”
+                </p>
+                <span class="quote-author">— Unknown</span>
+              </div>
+            </div>
+
+            <!-- Metrics Cards Row -->
+            <section class="insights-tab-section">
+              <h2 class="section-title">Journal Metrics</h2>
+              <div class="insights-metrics-grid hj-stagger">
+                <hj-metric-card
+                  id="insight-total-entries"
+                  label="Total Entries"
+                  value="0"
+                  icon="book-open"
+                  tone="blue"
+                ></hj-metric-card>
+                <hj-metric-card
+                  id="insight-total-words"
+                  label="Total Words"
+                  value="0"
+                  icon="file-text"
+                  tone="purple"
+                ></hj-metric-card>
+                <hj-metric-card
+                  id="insight-streak-days"
+                  label="Day Streak"
+                  value="0"
+                  icon="flame"
+                  tone="amber"
+                ></hj-metric-card>
+                <hj-metric-card
+                  id="insight-avg-mood"
+                  label="Avg Mood"
+                  value="5.0"
+                  icon="smile"
+                  tone="rose"
+                ></hj-metric-card>
+              </div>
+            </section>
+
+            <div class="insights-two-col">
+              <!-- Personal Profile Card -->
+              <hj-card class="insights-tab-section insights-card">
+                <h2 class="section-title">Personal Profile</h2>
+                <p class="insights-help">
+                  Tell your AI thinking partner about you. Stored privately and
+                  locally on your machine.
+                </p>
+                <hj-field
+                  class="insights-form-group"
+                  label="Name / Preferred Name"
+                  for="insight-profile-name"
+                >
+                  <input
+                    type="text"
+                    id="insight-profile-name"
+                    class="text-input-control"
+                    placeholder="What should the AI call you?"
+                  />
+                </hj-field>
+                <hj-field
+                  class="insights-form-group"
+                  label="Bio &amp; Context"
+                  for="insight-profile-bio"
+                >
+                  <textarea
+                    id="insight-profile-bio"
+                    rows="3"
+                    class="textarea-control"
+                    placeholder="Role, life context, core values, or interests…"
+                  ></textarea>
+                </hj-field>
+                <hj-field
+                  class="insights-form-group"
+                  label="Long-term Goals &amp; Aspirations"
+                  for="insight-profile-goals"
+                >
+                  <textarea
+                    id="insight-profile-goals"
+                    rows="4"
+                    class="textarea-control"
+                    placeholder="What are your major long-term goals (6 months to 5 years)?"
+                  ></textarea>
+                </hj-field>
+                <div class="insights-actions">
+                  <hj-button id="btn-save-profile" variant="primary"
+                    >Save Profile</hj-button
+                  >
+                  <span id="insight-profile-status" class="field-help"></span>
+                </div>
+              </hj-card>
+
+              <!-- AI Summary, Reflection & Long-Term Suggestions -->
+              <hj-card class="insights-tab-section insights-card">
+                <div class="insights-section-title-row">
+                  <h2 class="section-title">AI Reflection &amp; Suggestions</h2>
+                  <hj-button
+                    id="btn-generate-ai-reflection"
+                    variant="ghost"
+                    size="sm"
+                    icon="sparkles"
+                    >Reflect</hj-button
+                  >
+                </div>
+                <p class="insights-help">
+                  AI synthesis of your mindset, progress, and alignment with
+                  long-term goals.
+                </p>
+                <div
+                  id="insight-ai-reflection-box"
+                  class="insight-reflection-box"
+                >
+                  <p class="reflection-empty">
+                    Click <strong>Reflect</strong> to generate an on-device AI
+                    reflection and tailored suggestions based on your journals
+                    and profile.
+                  </p>
+                </div>
+              </hj-card>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="tab-mood" class="tab-view">
+        <div class="mood-page">
+          <div class="mood-page-inner">
+            <header class="mood-header">
+              <h1>Mood</h1>
+              <p>A quiet check-in. One line is enough.</p>
+            </header>
+            <section class="mood-checkin">
+              <h2 class="section-title">How are you feeling?</h2>
+              <div
+                id="mood-chips"
+                class="mood-chips"
+                role="radiogroup"
+                aria-label="Mood"
+              ></div>
+              <input
+                type="text"
+                id="mood-note"
+                class="text-input-control"
+                placeholder="One line (optional)"
+                maxlength="200"
+              />
+              <div class="mood-checkin-actions">
+                <hj-button variant="primary" id="btn-mood-save"
+                  >Log mood</hj-button
+                >
+                <hj-button variant="ghost" id="btn-mood-remove"
+                  >Clear this day</hj-button
+                >
+                <span
+                  id="mood-save-status"
+                  class="field-hint"
+                  role="status"
+                ></span>
+              </div>
+            </section>
+            <section class="mood-month">
+              <div class="calendar-header">
+                <h2 class="section-title">
+                  Mood — <span id="mood-cal-title"></span>
+                </h2>
+                <div class="calendar-nav">
+                  <button
+                    id="mood-prev"
+                    class="icon-btn"
+                    aria-label="Previous month"
+                  >
+                    <hj-icon
+                      name="chevron-left"
+                      size="16"
+                      aria-hidden="true"
+                    ></hj-icon>
+                  </button>
+                  <hj-button variant="secondary" id="mood-today"
+                    >Today</hj-button
+                  >
+                  <button
+                    id="mood-next"
+                    class="icon-btn"
+                    aria-label="Next month"
+                  >
+                    <hj-icon
+                      name="chevron-right"
+                      size="16"
+                      aria-hidden="true"
+                    ></hj-icon>
+                  </button>
+                </div>
+              </div>
+              <div
+                id="mood-month-grid"
+                class="calendar-grid mood-calendar-grid"
+              ></div>
+            </section>
+            <section class="mood-trend">
+              <h2 class="section-title">This month's trend</h2>
+              <div class="chart-wrap"><canvas id="mood-chart"></canvas></div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <div id="tab-events" class="tab-view">
+        <div class="events-view-layout">
+          <header class="tasks-header">
+            <div class="header-main">
+              <h2>Events & Notes</h2>
+              <div class="view-toggle">
+                <button class="switcher-btn active" data-view="events">
+                  Events
+                </button>
+                <button class="switcher-btn" data-view="notes">Notes</button>
+                <button class="switcher-btn" data-view="calendar">
+                  Calendar
+                </button>
+              </div>
+            </div>
+            <div class="header-actions">
+              <div class="task-search-box">
+                <input
+                  type="text"
+                  id="events-search"
+                  placeholder="Search events or notes..."
+                />
+              </div>
+              <hj-button variant="primary" id="btn-new-event"
+                >+ New Event</hj-button
+              >
+              <hj-button variant="ghost" id="btn-new-note"
+                >+ New Note</hj-button
+              >
+            </div>
+          </header>
+
+          <div id="events-list" class="task-items-container">
+            <div id="events-list-items">
+              <div class="empty-state">
+                <div class="empty-state-icon">
+                  <hj-icon
+                    name="calendar"
+                    size="16"
+                    aria-hidden="true"
+                  ></hj-icon>
+                </div>
+                <p>
+                  No upcoming events.<br /><small
+                    >Schedule your first event or use AI analysis.</small
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div id="events-calendar" class="calendar-container hidden">
+            <!-- Simple calendar view rendered by events.js -->
+          </div>
+
+          <!-- Event Detail Panel -->
+          <aside
+            id="event-detail-panel"
+            class="detail-panel hidden"
+            aria-label="Event Details"
+          >
+            <header class="panel-header">
+              <h3>Event</h3>
+              <button id="btn-close-event-detail" class="btn-icon">×</button>
+            </header>
+            <div class="panel-content">
+              <input type="hidden" id="detail-event-id" />
+              <div class="form-group">
+                <label for="detail-event-title">Title</label>
+                <input type="text" id="detail-event-title" />
+              </div>
+              <div class="form-group">
+                <label for="detail-event-desc">Description</label>
+                <textarea id="detail-event-desc" rows="4"></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="detail-event-start">Start</label>
+                  <input type="datetime-local" id="detail-event-start" />
+                </div>
+                <div class="form-group">
+                  <label for="detail-event-end">End</label>
+                  <input type="datetime-local" id="detail-event-end" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="detail-event-all-day">All Day</label>
+                  <input type="checkbox" id="detail-event-all-day" />
+                </div>
+                <div class="form-group">
+                  <label for="detail-event-location">Location</label>
+                  <input type="text" id="detail-event-location" />
+                </div>
+                <div class="form-group">
+                  <label for="detail-event-reminder">Reminder</label>
+                  <input type="datetime-local" id="detail-event-reminder" />
+                </div>
+              </div>
+            </div>
+            <footer class="panel-footer">
+              <hj-button variant="danger" id="btn-delete-event"
+                >Delete</hj-button
+              >
+              <hj-button variant="primary" id="btn-save-event">Save</hj-button>
+            </footer>
+          </aside>
+
+          <!-- Note Detail Panel -->
+          <aside
+            id="note-detail-panel"
+            class="detail-panel hidden"
+            aria-label="Note Details"
+          >
+            <header class="panel-header">
+              <h3>Note</h3>
+              <button id="btn-close-note-detail" class="btn-icon">×</button>
+            </header>
+            <div class="panel-content">
+              <input type="hidden" id="detail-note-id" />
+              <div class="form-group">
+                <label for="detail-note-title">Title</label>
+                <input type="text" id="detail-note-title" />
+              </div>
+              <div class="form-group">
+                <label for="detail-note-content">Content</label>
+                <textarea id="detail-note-content" rows="6"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="detail-note-tags">Tags (JSON)</label>
+                <input
+                  type="text"
+                  id="detail-note-tags"
+                  placeholder='["tag1","tag2"]'
+                />
+              </div>
+            </div>
+            <footer class="panel-footer">
+              <hj-button variant="danger" id="btn-delete-note"
+                >Delete</hj-button
+              >
+              <hj-button variant="primary" id="btn-save-note">Save</hj-button>
+            </footer>
+          </aside>
+        </div>
+      </div>
+      <div id="tab-ai" class="tab-view">
+        <div class="settings-view-layout">
+          <header class="settings-header">
+            <h2>AI</h2>
+            <p>
+              Your local AI partner — who it is, what it knows, and how it
+              works. Chat lives in the Thinking Partner sidebar.
+            </p>
+          </header>
+
+          <section class="settings-section" id="ai-card-identity">
+            <div class="settings-section-header">
+              <div class="settings-section-icon">
+                <hj-icon
+                  name="message-circle"
+                  size="16"
+                  aria-hidden="true"
+                ></hj-icon>
+              </div>
+              <div class="settings-section-title">
+                <h3>Identity</h3>
+                <p>Who the AI is and how it speaks to you.</p>
+              </div>
+            </div>
+            <div class="settings-section-body">
+              <div class="form-group">
+                <label for="ai-voice-input">AI Voice</label>
+                <textarea
+                  id="ai-voice-input"
+                  rows="3"
+                  class="text-input-control"
+                  placeholder="Tone, formality, coaching style — e.g. 'warm, direct, a little funny'"
+                  maxlength="1000"
+                  autocomplete="off"
+                ></textarea>
+                <p class="settings-hint">
+                  Applies to the AI's conversation voice on your next message.
+                </p>
+              </div>
+              <div class="form-group">
+                <label>Persona</label>
+                <div id="ai-persona-form" class="persona-form"></div>
+                <p class="settings-hint">
+                  Your answers are stored on-device and help the AI remember who
+                  you are. Also editable in the Memory tab.
+                </p>
+              </div>
+              <div class="form-group">
+                <hj-button variant="primary" id="btn-save-ai-identity"
+                  >Save Identity</hj-button
+                >
+                <span id="ai-identity-status" class="settings-hint"></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" id="ai-card-knowledge">
+            <div class="settings-section-header">
+              <div class="settings-section-icon">
+                <hj-icon
+                  name="book-open"
+                  size="16"
+                  aria-hidden="true"
+                ></hj-icon>
+              </div>
+              <div class="settings-section-title">
+                <h3>Knowledge</h3>
+                <p>What the AI knows about you.</p>
+              </div>
+            </div>
+            <div class="settings-section-body">
+              <p class="settings-hint">Coming in a later phase.</p>
+            </div>
+          </section>
+
+          <section class="settings-section" id="ai-card-skills">
+            <div class="settings-section-header">
+              <div class="settings-section-icon">
+                <hj-icon name="bot" size="16" aria-hidden="true"></hj-icon>
+              </div>
+              <div class="settings-section-title">
+                <h3>Skills &amp; Tools</h3>
+                <p>Capabilities and function calls the AI may use.</p>
+              </div>
+            </div>
+            <div class="settings-section-body">
+              <p class="settings-hint">Coming in a later phase.</p>
+            </div>
+          </section>
+
+          <section class="settings-section" id="ai-card-workflows">
+            <div class="settings-section-header">
+              <div class="settings-section-icon">
+                <hj-icon
+                  name="git-branch"
+                  size="16"
+                  aria-hidden="true"
+                ></hj-icon>
+              </div>
+              <div class="settings-section-title">
+                <h3>Workflows</h3>
+                <p>Auto-analysis, context budgets, and scheduling.</p>
+              </div>
+            </div>
+            <div class="settings-section-body">
+              <p class="settings-hint">Coming in a later phase.</p>
+            </div>
+          </section>
+
+          <section class="settings-section" id="ai-card-engine">
+            <div class="settings-section-header">
+              <div class="settings-section-icon">
+                <hj-icon name="cpu" size="16" aria-hidden="true"></hj-icon>
+              </div>
+              <div class="settings-section-title">
+                <h3>Engine &amp; Performance</h3>
+                <p>Models, inference parameters, and server tuning.</p>
+              </div>
+            </div>
+            <div class="settings-section-body">
+              <p class="settings-hint">Coming in a later phase.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div id="tab-memory" class="tab-view">
+        <div class="empty-state">
+          <div class="loading-spinner"></div>
+          <p>Restoring memory bank...</p>
+        </div>
+      </div>
+      <div id="tab-reports" class="tab-view">
+        <div class="empty-state">
+          <div class="loading-spinner"></div>
+          <p>Calculating insights...</p>
+        </div>
+      </div>
+      <div id="tab-system" class="tab-view">
+        <div class="empty-state">
+          <div class="loading-spinner"></div>
+          <p>Loading system…</p>
+        </div>
+      </div>
+      <div id="tab-settings" class="tab-view">
+        <div class="settings-page">
+          <div class="settings-page-inner">
+            <header class="settings-header">
+              <h1>Settings</h1>
+              <p>
+                Configure your AI partner, check system health, and manage
+                diagnostics.
+              </p>
+            </header>
+
+            <section class="settings-section" id="appearance-section">
+              <h2>Appearance</h2>
+              <p>
+                Personalize the background with a picture. The painterly color
+                washes stay on top for readability.
+              </p>
+              <div class="settings-section-body">
+                <div class="field">
+                  <label class="field-label" for="bg-image-path"
+                    >Background image</label
+                  >
+                  <div class="input-with-button">
+                    <input
+                      type="text"
+                      id="bg-image-path"
+                      class="text-input-control"
+                      placeholder="No image selected"
+                      readonly
+                    />
+                    <hj-button variant="ghost" size="sm" id="btn-browse-bg"
+                      >Choose…</hj-button
+                    >
+                    <hj-button variant="ghost" size="sm" id="btn-clear-bg"
+                      >Clear</hj-button
+                    >
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="bg-opacity"
+                    >Overlay strength</label
+                  >
+                  <input
+                    type="range"
+                    id="bg-opacity"
+                    min="0"
+                    max="100"
+                    value="40"
+                  />
+                  <p class="field-help" id="bg-opacity-help">
+                    0% = picture fully visible, 100% = completely dark.
+                  </p>
+                </div>
+                <div id="bg-preview" class="bg-preview hidden"></div>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>LLM Engine</h2>
+              <p>
+                Manage the local llama.cpp chat and embed servers, and the GGUF
+                models they load.
+              </p>
+              <div class="settings-section-body">
+                <div class="engine-status">
+                  <div class="engine-status-item">
+                    <span class="status-dot" id="chat-status"></span>
+                    <span
+                      >Chat Server (<span id="chat-port-label">:8080</span
+                      >)</span
+                    >
+                    <hj-button variant="ghost" size="sm" id="btn-restart-chat"
+                      >Restart</hj-button
+                    >
+                  </div>
+                  <div class="engine-status-item">
+                    <span class="status-dot" id="embed-status"></span>
+                    <span
+                      >Embed Server (<span id="embed-port-label">:8081</span
+                      >)</span
+                    >
+                    <hj-button variant="ghost" size="sm" id="btn-restart-embed"
+                      >Restart</hj-button
+                    >
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="chat-model-select"
+                    >Chat model (any instruct-tuned GGUF)</label
+                  >
+                  <div class="model-picker">
+                    <select id="chat-model-select" class="select-control">
+                      <option value="">Loading…</option>
+                    </select>
+                    <hj-button variant="ghost" size="sm" id="btn-import-chat"
+                      >Select local GGUF</hj-button
+                    >
+                  </div>
+                  <p class="field-help">
+                    Recommended: Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M — the
+                    model the prompts and tools are tuned against. Any
+                    instruct-tuned GGUF works. Nothing is downloaded; you pick a
+                    local .gguf file. Embedding models are rejected here.
+                  </p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="embed-model-select"
+                    >Embedding model (semantic journal search)</label
+                  >
+                  <div class="model-picker">
+                    <select id="embed-model-select" class="select-control">
+                      <option value="">Loading…</option>
+                    </select>
+                    <hj-button variant="ghost" size="sm" id="btn-import-embed"
+                      >Select local GGUF</hj-button
+                    >
+                  </div>
+                  <p class="field-help">
+                    Recommended: nomic-embed-text-v2-moe. Used only to index
+                    journal entries and retrieve them semantically — never for
+                    chat or analysis.
+                  </p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="llama-exe-path"
+                    >llama-server executable</label
+                  >
+                  <div class="input-with-button">
+                    <input
+                      type="text"
+                      id="llama-exe-path"
+                      class="text-input-control"
+                      placeholder="C:\path\to\llama-server.exe"
+                    />
+                    <hj-button variant="ghost" size="sm" id="btn-browse-exe"
+                      >Browse…</hj-button
+                    >
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label class="field-label" for="llama-ngl"
+                      >GPU layers</label
+                    >
+                    <input
+                      type="number"
+                      id="llama-ngl"
+                      class="text-input-control"
+                      value="99"
+                      min="0"
+                      max="400"
+                    />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="llama-ctx-size"
+                      >Context size</label
+                    >
+                    <input
+                      type="number"
+                      id="llama-ctx-size"
+                      class="text-input-control"
+                      value="16384"
+                      min="512"
+                      max="131072"
+                    />
+                  </div>
+                </div>
+                <p class="field-help">
+                  After importing or switching a model, use Restart to reload
+                  the engine with the new GGUF. Engine starts only when the
+                  executable path is set and the vault is unlocked.
+                </p>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>System Check</h2>
+              <p>
+                Verify data storage, the database, and your local AI engine are
+                working correctly.
+              </p>
+              <div class="settings-actions">
+                <hj-button variant="primary" id="btn-run-system-check"
+                  >Run System Check</hj-button
+                >
+              </div>
+              <div
+                id="system-check-summary"
+                class="system-check-summary hidden"
+              ></div>
+              <div
+                id="system-check-list"
+                class="system-check-list hidden"
+              ></div>
+            </section>
+
+            <section class="settings-section">
+              <h2>Vault &amp; Security</h2>
+              <p>
+                Your journal is encrypted with a master password (SQLCipher +
+                AES-256-GCM). Change it here — everything is re-encrypted
+                automatically.
+              </p>
+              <div class="settings-section-body">
+                <div
+                  id="vault-settings-status"
+                  class="settings-status"
+                  role="status"
+                ></div>
+                <div class="field">
+                  <label class="field-label" for="vault-current-password"
+                    >Current master password</label
+                  >
+                  <input
+                    type="password"
+                    id="vault-current-password"
+                    class="text-input-control"
+                    autocomplete="current-password"
+                    aria-describedby="vault-password-error"
+                  />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label class="field-label" for="vault-new-password"
+                      >New master password</label
+                    >
+                    <input
+                      type="password"
+                      id="vault-new-password"
+                      class="text-input-control"
+                      autocomplete="new-password"
+                      aria-describedby="vault-password-error"
+                    />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="vault-confirm-new-password"
+                      >Confirm new password</label
+                    >
+                    <input
+                      type="password"
+                      id="vault-confirm-new-password"
+                      class="text-input-control"
+                      autocomplete="new-password"
+                      aria-describedby="vault-password-error"
+                    />
+                  </div>
+                </div>
+                <p
+                  id="vault-password-error"
+                  class="field-error hidden"
+                  role="alert"
+                ></p>
+                <p class="field-help">
+                  There is no “forgot password” — write the new password down.
+                  Losing it means losing your encrypted journal.
+                </p>
+                <div class="settings-actions">
+                  <hj-button variant="primary" id="btn-change-vault-password"
+                    >Change Master Password</hj-button
+                  >
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>Activity Log</h2>
+              <p>
+                Live stream of IPC calls, app events, and engine HTTP requests
+                with status and timing. Content is never logged — only shapes
+                and sizes.
+              </p>
+              <div class="activity-log-controls">
+                <hj-button variant="ghost" size="sm" id="btn-activity-pause"
+                  >Pause</hj-button
+                >
+                <hj-button variant="ghost" size="sm" id="btn-activity-clear"
+                  >Clear</hj-button
+                >
+                <hj-button variant="ghost" size="sm" id="btn-activity-copy"
+                  >Copy as JSON</hj-button
+                >
+              </div>
+              <div class="activity-log-wrap">
+                <table class="data-table activity-log-table">
+                  <thead>
+                    <tr>
+                      <th class="col-time">Time</th>
+                      <th class="col-source">Source</th>
+                      <th>Operation</th>
+                      <th class="col-status">Status</th>
+                      <th class="col-dur">Dur</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody id="activity-log-body">
+                    <tr class="activity-log-empty">
+                      <td colspan="6">
+                        Activity will appear here as you use the app.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>Development &amp; Debugging</h2>
+              <p>
+                Encountered an issue? Generate a detailed bug report with recent
+                actions and error logs.
+              </p>
+              <div class="settings-section-body">
+                <div class="field">
+                  <label class="field-label" for="bug-report-feedback"
+                    >What went wrong?</label
+                  >
+                  <textarea
+                    id="bug-report-feedback"
+                    class="textarea-control"
+                    rows="4"
+                    placeholder="Describe what you were doing and what happened..."
+                  ></textarea>
+                </div>
+                <div class="settings-actions">
+                  <hj-button variant="primary" id="btn-submit-bug"
+                    >Generate Bug Report</hj-button
+                  >
+                  <hj-button variant="ghost" id="btn-restart-onboarding"
+                    >Restart Onboarding</hj-button
+                  >
+                </div>
+                <div
+                  id="bug-report-status"
+                  class="settings-status"
+                  role="status"
+                ></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside id="right-sidebar" aria-label="Assistant">
+      <div class="assistant-rail">
+        <button
+          id="btn-toggle-assistant-rail"
+          class="icon-btn"
+          aria-label="Expand assistant"
+          title="Expand assistant"
+        >
+          <hj-icon name="sparkles" size="16" aria-hidden="true"></hj-icon>
+        </button>
+        <span
+          id="rail-analysis-dot"
+          class="status-dot"
+          aria-hidden="true"
+        ></span>
+        <span id="rail-inbox-count" class="chip hidden" aria-hidden="true"
+          >0</span
+        >
+      </div>
+      <div class="sidebar-header">
+        <div class="sidebar-header-title">
+          <hj-icon name="message-circle" size="16" aria-hidden="true"></hj-icon
+          ><span>Thinking Partner</span>
+        </div>
+        <div class="sidebar-header-actions">
+          <hj-button variant="ghost" size="sm" id="btn-open-inbox"
+            ><hj-icon name="inbox" size="16" aria-hidden="true"></hj-icon
+            ><span>Inbox</span></hj-button
+          >
+          <button
+            id="btn-toggle-assistant"
+            class="icon-btn"
+            aria-label="Collapse assistant"
+            aria-expanded="true"
+            title="Collapse assistant"
+          >
+            <hj-icon
+              name="panel-right-close"
+              size="16"
+              aria-hidden="true"
+            ></hj-icon>
+          </button>
+        </div>
+      </div>
+      <div
+        id="analysis-strip"
+        class="assistant-status is-idle"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="assistant-status-state" id="analysis-strip-state"
+          >Idle</span
+        >
+        <span class="assistant-status-detail" id="analysis-strip-detail"
+          >Auto-analyzed as you type — no save needed.</span
+        >
+        <span class="assistant-status-time" id="analysis-strip-time"></span>
+        <button id="btn-analysis-retry" class="btn-ghost-sm hidden">
+          Retry
+        </button>
+      </div>
+      <div id="ai-chat-messages">
+        <div class="chat-assistant">Write in your journal to begin.</div>
+      </div>
+      <div id="ai-inbox" class="inbox-panel hidden"></div>
+
+      <div class="chat-input-area">
+        <div class="composer">
+          <textarea
+            id="ai-chat-input"
+            rows="1"
+            placeholder="Ask your Thinking Partner…"
+          ></textarea>
+          <button
+            id="btn-send-chat"
+            class="icon-btn"
+            aria-label="Send message"
+            title="Send message"
+            disabled
+          >
+            <hj-icon name="arrow-up" size="16" aria-hidden="true"></hj-icon>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Vault Unlock Overlay (T-01) -->
+    <div id="vault-overlay" class="vault-overlay hidden">
+      <div class="vault-card">
+        <div class="vault-icon">
+          <hj-icon name="lock" size="16" aria-hidden="true"></hj-icon>
+        </div>
+        <h2 class="vault-title">Unlock Your Vault</h2>
+        <p class="vault-subtitle">
+          Enter your master password to access your journal.
+        </p>
+        <div class="vault-input-group">
+          <input
+            type="password"
+            id="vault-password"
+            class="vault-password-input"
+            placeholder="Master Password"
+            autofocus
+          />
+          <!-- T-04: shown only on first unlock (no password exists yet) — the
+             password is created here and cannot be recovered if lost. -->
+          <input
+            type="password"
+            id="vault-confirm"
+            class="vault-password-input hidden"
+            placeholder="Confirm Master Password"
+          />
+          <div id="vault-warning" class="vault-warning hidden">
+            This password cannot be recovered. Write it down — there is no
+            “forgot password” and your journal is encrypted with it.
+          </div>
+          <div id="vault-error" class="vault-error"></div>
+        </div>
+        <button id="btn-unlock-vault" class="btn-primary vault-button">
+          Unlock Journal
+        </button>
+      </div>
+    </div>
+
+    <!-- First-run onboarding wizard (P-04). Hidden unless onboarding_complete is unset. -->
+    <div
+      id="onboarding-overlay"
+      class="onboarding-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
+    >
+      <div class="onboarding-card">
+        <div class="onboarding-header">
+          <div class="onboarding-brand">Arnold</div>
+          <h1 id="onboarding-title">Welcome</h1>
+        </div>
+        <div class="onboarding-steps" id="onboarding-steps">
+          <div class="onboarding-step active" data-step="0">Welcome</div>
+          <div class="onboarding-step" data-step="1">Engine</div>
+          <div class="onboarding-step" data-step="2">Chat Model</div>
+          <div class="onboarding-step" data-step="3">Embed Model</div>
+          <div class="onboarding-step" data-step="4">Persona</div>
+          <div class="onboarding-step" data-step="5">System Check</div>
+          <div class="onboarding-step" data-step="6">Done</div>
+        </div>
+        <div class="onboarding-body">
+          <!-- Step 0: Welcome -->
+          <section class="onboarding-pane active" data-pane="0">
+            <p>
+              Your private, offline journal and task manager with a local AI
+              partner. Everything stays on this machine.
+            </p>
+            <p>
+              <strong>Bring your own models — nothing is downloaded.</strong>
+              Arnold needs a local <strong>llama-server</strong> runtime and two
+              GGUF files you pick yourself:
+            </p>
+            <ul class="onboarding-features">
+              <li>
+                <hj-icon name="server" size="16" aria-hidden="true"></hj-icon>
+                <strong>llama-server.exe</strong> — bundled in the Windows
+                release; from source, stage your own llama.cpp build
+              </li>
+              <li>
+                <hj-icon
+                  name="message-circle"
+                  size="16"
+                  aria-hidden="true"
+                ></hj-icon>
+                <strong>A chat GGUF</strong> — any instruct-tuned model works;
+                Qwythos-9B is what the prompts and tools are tuned against
+              </li>
+              <li>
+                <hj-icon name="search" size="16" aria-hidden="true"></hj-icon>
+                <strong>An embedding GGUF</strong> — used only to index and
+                search journal entries (nomic-embed recommended)
+              </li>
+            </ul>
+            <p>
+              No account, no cloud, no network. The AI can never write to your
+              data on its own — every change becomes a proposal you accept in
+              the Review Inbox.
+            </p>
+            <ul class="onboarding-features">
+              <li>
+                <hj-icon
+                  name="book-open"
+                  size="16"
+                  aria-hidden="true"
+                ></hj-icon>
+                Write journal entries - the AI reads them automatically
+              </li>
+              <li>
+                <hj-icon name="check" size="16" aria-hidden="true"></hj-icon>
+                Tasks get extracted and managed through conversation
+              </li>
+              <li>
+                <hj-icon
+                  name="shield-check"
+                  size="16"
+                  aria-hidden="true"
+                ></hj-icon>
+                100% local. No accounts, no cloud, no internet required
+              </li>
+            </ul>
+          </section>
+          <!-- Step 1: Locate llama-server -->
+          <section class="onboarding-pane" data-pane="1">
+            <p>
+              Arnold bundles no model runtime. Point the app at your
+              <strong>llama-server.exe</strong> (from a llama.cpp build) and it
+              will manage the servers for you.
+            </p>
+            <div class="onboarding-check-result">
+              <label
+                for="onboard-exe-path"
+                class="onboarding-inline-label"
+                style="flex: 0 0 auto"
+                >Executable</label
+              >
+              <input
+                type="text"
+                id="onboard-exe-path"
+                class="text-input-control"
+                style="flex: 1 1 auto"
+                placeholder="C:\path\to\llama-server.exe"
+              />
+            </div>
+            <div class="onboarding-actions">
+              <hj-button variant="ghost" size="sm" id="btn-onboard-browse-exe"
+                >Browse…</hj-button
+              >
+              <hj-button variant="primary" id="btn-onboard-continue-engine"
+                >Continue</hj-button
+              >
+            </div>
+          </section>
+          <!-- Step 2: Import chat model -->
+          <section class="onboarding-pane" data-pane="2">
+            <p>
+              Select your local chat GGUF. Recommended:
+              <code>Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M</code>, but any
+              instruct-tuned GGUF works. It is copied into
+              <code>models/chat/</code> — nothing is downloaded. Embedding
+              models are rejected here.
+            </p>
+            <div
+              class="onboarding-check-result"
+              id="onboarding-import-chat-result"
+            >
+              <span class="onboarding-spinner"></span> Waiting…
+            </div>
+            <div class="onboarding-actions">
+              <hj-button variant="primary" id="btn-onboard-import-chat"
+                >Select Chat GGUF</hj-button
+              >
+            </div>
+          </section>
+          <!-- Step 3: Import embed model -->
+          <section class="onboarding-pane" data-pane="3">
+            <p>
+              Select your local <strong>embedding</strong> GGUF. Recommended:
+              <code>nomic-embed-text-v2-moe</code>. It is copied into
+              <code>models/embed/</code> and is used only for semantic journal
+              search — nothing is downloaded.
+            </p>
+            <div
+              class="onboarding-check-result"
+              id="onboarding-import-embed-result"
+            >
+              <span class="onboarding-spinner"></span> Waiting…
+            </div>
+            <div class="onboarding-actions">
+              <hj-button variant="primary" id="btn-onboard-import-embed"
+                >Select Embed GGUF</hj-button
+              >
+            </div>
+          </section>
+          <!-- Step 4: Persona -->
+          <section class="onboarding-pane" data-pane="4">
+            <p>
+              Tell me about yourself so your AI has grounded context from day
+              one. Answer any or all — everything stays on this machine.
+            </p>
+            <div id="onboarding-persona-form" class="persona-form"></div>
+            <div class="onboarding-actions">
+              <button id="btn-onboarding-skip-persona" class="btn-link-sm">
+                Skip for now
+              </button>
+            </div>
+          </section>
+          <!-- Step 5: System check -->
+          <section class="onboarding-pane" data-pane="5">
+            <p>Running a quick system check before you begin.</p>
+            <div id="onboarding-check-list" class="onboarding-check-list">
+              <div class="onboarding-check-item">
+                <span class="onboarding-spinner"></span> Running checks…
+              </div>
+            </div>
+            <button id="btn-rerun-checks" class="btn-ghost-sm hidden">
+              Run again
+            </button>
+          </section>
+          <!-- Step 6: Finish -->
+          <section class="onboarding-pane" data-pane="6">
+            <p>You're all set. Your data lives at:</p>
+            <code id="onboarding-data-dir" class="onboarding-data-dir"></code>
+            <p class="onboarding-finish-note">
+              The AI can start reading your journal as soon as you write your
+              first entry.
+            </p>
+          </section>
+        </div>
+        <div class="onboarding-footer">
+          <hj-button variant="ghost" size="sm" id="btn-onboarding-prev"
+            >Back</hj-button
+          >
+          <div class="onboarding-footer-right">
+            <hj-button variant="ghost" size="sm" id="btn-onboarding-skip"
+              >Skip setup</hj-button
+            >
+            <hj-button variant="primary" id="btn-onboarding-next"
+              >Continue</hj-button
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/components/hj-icon.js"></script>
+    <script type="module" src="js/components/elements.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

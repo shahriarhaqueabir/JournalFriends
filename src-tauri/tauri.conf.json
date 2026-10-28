@@ -1,0 +1,64 @@
+{
+  "productName": "Arnold",
+  "version": "0.1.0",
+  "identifier": "com.arnold.journal",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Arnold",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1200,
+        "minHeight": 700,
+        "resizable": true,
+        "decorations": true,
+        "center": true,
+        "transparent": true
+      }
+    ],
+    "withGlobalTauri": true,
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data: asset:; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "shortDescription": "Offline-first journal, task manager, and local AI companion",
+    "longDescription": "A private, offline-first desktop app built around one loop: write a journal entry, and a local llama.cpp model turns the commitments in it into tasks you review and approve. Bring your own GGUF models - nothing is downloaded. Every AI change is a proposal you accept in the Review Inbox, and all data lives in a single encrypted SQLite file on your machine. No internet, no accounts, no cloud.",
+    "category": "Productivity",
+    "copyright": "Copyright © 2026 Arnold",
+    "publisher": "Arnold",
+    "homepage": "https://github.com/shahriarhaqueabir/arnold",
+    "license": "MIT",
+    "icon": [
+      "Icons/32x32.png",
+      "Icons/128x128.png",
+      "Icons/128x128@2x.png",
+      "Icons/icon.icns",
+      "Icons/icon.ico"
+    ],
+    "resources": {
+      "../llama-b10952-bin-win-cuda-x64/*.dll": "engines/",
+      "../llama-b10952-bin-win-cuda-x64/llama-server.exe": "engines/llama-server.exe",
+      "../llama-b10952-bin-win-cuda-x64/LICENSE-LLVM-OpenMP": "engines/LICENSE-LLVM-OpenMP"
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false
+      },
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      }
+    }
+  }
+}

@@ -1,0 +1,104 @@
+// <puredashboard-descriptions> — a key/value detail list (spec sheet). Zero-dep, no
+// build, CSP-safe. Built on the Reactive base.
+//
+// A presentational block that lays out a set of label/value pairs in a CSS grid —
+// like a product spec sheet, an entity detail panel, or a "properties" table. It's
+// table-shaped (see table.js) but read-only: no events, no selection, no sorting.
+//
+// Class naming (BEM, block = the component tag): style classes are namespaced
+// `puredashboard-descriptions__<element>[--<modifier>]`. The column count is exposed
+// as the component knob `--pd-descriptions-cols` (set inline from the `columns`
+// property) so the grid template is data-driven; per-item `span` widens a pair via an
+// inline `grid-column`. Item labels and values are AUTHOR CONTENT, interpolated at a
+// child position in the reactive `html` engine (never `raw()`): a plain string is
+// auto-escaped so untrusted strings are safe — but each also accepts a DOM node /
+// nested `html` template / array to embed a custom element (you build it, you own its
+// safety).
+//
+// NB: html comes from reactive.js (the parts engine); `repeat()` keys each pair so
+// re-renders diff in place. There are no focusable children, but we stay consistent
+// with the rest of the library.
+import { Reactive, html, repeat } from "./reactive.js";
+
+// All user-facing (chrome) strings live here (English defaults). Override any subset
+// via the `labels` property to localise — e.g. d.labels = { empty: "Không có dữ liệu" }.
+// Note: item labels/values are author content, NOT chrome strings — they are passed in
+// via the `items` property and are not part of this map.
+const LABELS = {
+  empty: "No details to show.",
+};
+
+/**
+ * A read-only key/value detail list (a "spec sheet"): renders a titled block whose
+ * body is a CSS grid of label/value pairs. Semantically a description list — each
+ * pair is a `<dt>` (label) + `<dd>` (value) inside a `<dl>` — so assistive tech reads
+ * the label→value association. Purely presentational: no events, no form
+ * participation. Configure entirely via JS properties.
+ *
+ * @element puredashboard-descriptions
+ *
+ * @prop {Array}   items      - Pairs to display: `{ label: string|Node, value: string|Node, span? }`. `label`/`value` each accept a string (auto-escaped) OR a DOM node / nested `html` template / array — pass a node or template to embed a custom element (you build it, you own its safety; plain strings stay escaped); `span` (integer ≥ 1) widens the pair across that many columns.
+ * @prop {number}  [columns=1] - Columns per row. Drives `--pd-descriptions-cols`; the grid collapses to fewer columns on narrow widths via CSS.
+ * @prop {boolean} [bordered]  - Draw cell borders (table-like) around each label/value cell. Default `false`.
+ * @prop {string|Node}  [title]     - Optional header shown above the grid: a string (auto-escaped) OR a DOM node / nested `html` template / array to embed a custom element (author-owned safety).
+ * @prop {Object}  [labels]    - Override chrome strings (English defaults). Keys: `empty`. Unset keys keep the English default.
+ *
+ * @cssprop [--pd-descriptions-cols] - Column count for the grid (set inline from `columns`; default `1`).
+ *
+ * @example
+ * const d = document.createElement("puredashboard-descriptions");
+ * d.title = "Server";
+ * d.columns = 2;
+ * d.bordered = true;
+ * d.items = [
+ *   { label: "Hostname", value: "web-01" },
+ *   { label: "Region", value: "eu-west-1" },
+ *   { label: "Notes", value: "Primary node", span: 2 },
+ * ];
+ * panel.append(d);
+ */
+class PuredashboardDescriptions extends Reactive {
+  static properties = {
+    items: {}, columns: {}, bordered: {}, title: {}, labels: {},
+  };
+
+  // Reflect declarative HTML attributes into reactive properties so the block can be
+  // configured inline — <puredashboard-descriptions title="Server" columns="2" bordered>.
+  // Boolean attrs map by presence; `columns` coerces to a number.
+  static observedAttributes = ["title", "columns", "bordered"];
+  attributeChangedCallback(name, _old, val) {
+    if (name === "bordered") this.bordered = val !== null;
+    else if (name === "columns") this.columns = val == null ? undefined : Number(val);
+    else this[name] = val;
+  }
+
+  // _label(key, …args) → localised string: this.labels override, else the English default.
+  _label(key, ...a) { const v = (this.labels && this.labels[key]) ?? LABELS[key]; return typeof v === "function" ? v(...a) : v; }
+
+  render() {
+    const items = Array.isArray(this.items) ? this.items : [];
+    const cols = Math.max(1, Math.floor(Number(this.columns) || 1));
+    const bordered = !!this.bordered;
+    const blockCls = `puredashboard-descriptions__list${bordered ? " puredashboard-descriptions__list--bordered" : ""}`;
+
+    const body = items.length
+      ? html`<dl class="${blockCls}" style="--pd-descriptions-cols:${cols}">
+          ${repeat(items, (it, i) => (it && it.label != null ? String(it.label) + "\u0000" + i : i), (it) => {
+            const span = Math.max(1, Math.floor(Number(it && it.span) || 1));
+            const style = span > 1 ? `grid-column:span ${Math.min(span, cols)}` : "";
+            return html`<div class="puredashboard-descriptions__pair" style="${style}">
+              <dt class="puredashboard-descriptions__term">${it ? it.label : ""}</dt>
+              <dd class="puredashboard-descriptions__detail">${it ? it.value : ""}</dd>
+            </div>`;
+          })}
+        </dl>`
+      : html`<div class="puredashboard-descriptions__empty">${this._label("empty")}</div>`;
+
+    return html`
+      ${this.title ? html`<div class="puredashboard-descriptions__title">${this.title}</div>` : ""}
+      ${body}`;
+  }
+}
+PuredashboardDescriptions.define("puredashboard-descriptions");
+
+export { PuredashboardDescriptions };
