@@ -19,15 +19,31 @@ jobs:
         with:
           node-version: 22
 
-      # The llama.cpp runtime is not committed; it must be supplied to the
-      # build workspace. For CI releases, download a pinned build here.
+      # The llama.cpp runtime is not committed (too large). Download the pinned
+      # build from the llama.cpp release assets and stage it at the repo root,
+      # which is where the Tauri bundler looks for it.
       - name: Stage llama.cpp runtime
         shell: pwsh
         run: |
-          if (-not (Test-Path "llama-b10952-bin-win-cuda-x64")) {
-            Write-Host "Runtime folder missing; release builds require it to be staged."
+          $folder = "llama-b10952-bin-win-cuda-x64"
+          if (-not (Test-Path $folder)) {
+            $zip = "$folder.zip"
+            $url = "https://github.com/ggml-org/llama.cpp/releases/download/b10952/llama-b10952-bin-win-cuda-12.4-x64.zip"
+            Write-Host "Downloading $url"
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+            Expand-Archive -Path $zip -DestinationPath "." -Force
+            # The archive extracts to a versioned folder; normalize the name.
+            $extracted = Get-ChildItem -Directory -Filter "llama-b10952-bin-win-cuda*" | Select-Object -First 1
+            if ($extracted -and $extracted.Name -ne $folder) {
+              Rename-Item -Path $extracted.FullName -NewName $folder
+            }
+            Remove-Item $zip -Force
+          }
+          if (-not (Test-Path "$folder/llama-server.exe")) {
+            Write-Host "Runtime staging failed: llama-server.exe not found."
             exit 1
           }
+          Write-Host "Runtime staged: $folder"
 
       - name: Build installers
         shell: pwsh
