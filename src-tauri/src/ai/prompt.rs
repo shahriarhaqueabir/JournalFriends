@@ -12,7 +12,7 @@ pub fn get_analysis_system_prompt() -> &'static str {
       \"insights\": [\"Synthesis of patterns or realizations (max 3)\"],
       \"triplets\": [[\"Subject\", \"Predicate\", \"Object\"]],
       \"facts\": [{\"fact_key\": \"snake_case_id\", \"content\": \"User-specific fact\", \"category\": \"preference/habit/constraint/person/goal\"}],
-      \"events\": [{\"title\": \"Event summary\", \"start_at\": \"ISO8601 timestamp\", \"location\": \"Optional location\"}],
+      \"events\": [{\"title\": \"Event summary\", \"start_at\": \"ISO8601 timestamp. Only include an event when a date is stated; never invent a time or date.\", \"location\": \"Optional location\"}],
       \"notes\": [{\"title\": \"Note title\", \"content\": \"Condensed content\", \"tags\": [\"tag1\", \"tag2\"]}]
     }
 

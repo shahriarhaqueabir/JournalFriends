@@ -3452,7 +3452,7 @@ pub fn run() {
                                             tx_ok = db::pool::with_tx(pool, move |tx| {
                                                 db::ai::upsert_conversation(tx, &conv_id, Some("auto-analysis"), &model, "analysis", Some(&id), Some("ai"))?;
 
-                                                for task in &result.tasks {
+                                                for task in result.tasks.iter().filter(|t| !t.title.trim().is_empty()) {
                                                     let proposal_id = Uuid::new_v4().to_string();
                                                     let title = crate::ai::percent_decode_str(&task.title);
                                                     let due_date = task.due_date.as_deref().map(crate::ai::percent_decode_str);
@@ -3461,19 +3461,24 @@ pub fn run() {
                                                     let snippet: String = content.chars().take(512).collect();
                                                     db::ai::insert_proposed_item(tx, &proposal_id, Some(&conv_id), Some(&id), "task", &title, &data, Some(&snippet), None, Some("ai"), &created_at)?;
                                                 }
-                                                for fact in &result.facts {
+                                                for fact in result.facts.iter().filter(|f| {
+                                                    let k = f.fact_key.trim().to_lowercase();
+                                                    !k.is_empty() && k != "true" && k != "false" && k != "null" && k != "none" && !f.content.trim().is_empty()
+                                                }) {
                                                     let proposal_id = Uuid::new_v4().to_string();
                                                     let data = serde_json::to_string(&serde_json::json!({"type": "fact", "fact_key": fact.fact_key, "content": fact.content, "category": fact.category})).unwrap_or_else(|_| "{}".into());
                                                     let snippet: String = content.chars().take(512).collect();
                                                     db::ai::insert_proposed_item(tx, &proposal_id, Some(&conv_id), Some(&id), "fact", &fact.content, &data, Some(&snippet), None, Some("ai"), &created_at)?;
                                                 }
-                                                for ev in &result.events {
+                                                for ev in result.events.iter().filter(|e| {
+                                                    !e.title.trim().is_empty() && !e.start_at.trim().is_empty() && chrono::DateTime::parse_from_rfc3339(&e.start_at).is_ok()
+                                                }) {
                                                     let proposal_id = Uuid::new_v4().to_string();
                                                     let data = serde_json::to_string(&serde_json::json!({"type": "event", "title": ev.title, "start_at": ev.start_at, "location": ev.location})).unwrap_or_else(|_| "{}".into());
                                                     let snippet: String = content.chars().take(512).collect();
                                                     db::ai::insert_proposed_item(tx, &proposal_id, Some(&conv_id), Some(&id), "event", &ev.title, &data, Some(&snippet), None, Some("ai"), &created_at)?;
                                                 }
-                                                for note in &result.notes {
+                                                for note in result.notes.iter().filter(|n| !n.content.trim().is_empty()) {
                                                     let proposal_id = Uuid::new_v4().to_string();
                                                     let data = serde_json::to_string(&serde_json::json!({"type": "note", "title": note.title, "content": note.content, "tags": note.tags})).unwrap_or_else(|_| "{}".into());
                                                     let snippet: String = content.chars().take(512).collect();
