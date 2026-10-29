@@ -6,7 +6,11 @@
 import { invoke } from "./ipc.js";
 import { recordDiagnostic } from "./diagnostics.js";
 import { stringifyError } from "./notifications.js";
-import { renderPersonaForm, collectPersonaAnswers, savePersonaAnswers } from "./persona.js";
+import {
+  renderPersonaForm,
+  collectPersonaAnswers,
+  savePersonaAnswers,
+} from "./persona.js";
 
 const TOTAL_STEPS = 7; // panes 0..6
 let currentStep = 0;
@@ -44,7 +48,10 @@ function goTo(step) {
     pane.classList.toggle("active", Number(pane.dataset.pane) === currentStep);
   });
   document.querySelectorAll(".onboarding-step").forEach((stepEl) => {
-    stepEl.classList.toggle("active", Number(stepEl.dataset.step) === currentStep);
+    stepEl.classList.toggle(
+      "active",
+      Number(stepEl.dataset.step) === currentStep,
+    );
   });
 
   const prevBtn = el("btn-onboarding-prev");
@@ -52,7 +59,8 @@ function goTo(step) {
   const skipBtn = el("btn-onboarding-skip");
 
   if (prevBtn) prevBtn.disabled = currentStep === 0;
-  if (skipBtn) skipBtn.style.display = currentStep === TOTAL_STEPS - 1 ? "none" : "";
+  if (skipBtn)
+    skipBtn.style.display = currentStep === TOTAL_STEPS - 1 ? "none" : "";
   if (nextBtn) {
     if (currentStep === 0) {
       nextBtn.textContent = "Begin";
@@ -64,6 +72,7 @@ function goTo(step) {
     }
   }
 
+  if (currentStep === 1) refreshEnginePath();
   if (currentStep === 5) runEngineCheck();
   window.renderIcons?.();
   recordDiagnostic("onboarding:step", { step: currentStep });
@@ -88,11 +97,58 @@ function ggufFilter() {
 }
 
 // --- Step 1: engine executable path ---
+let exePathLoaded = false;
+
+/** Report the executable the backend actually launches (bundled by default). */
+async function refreshEnginePath() {
+  const input = el("onboard-exe-path");
+  const hint = el("onboard-exe-hint");
+  if (!input) return;
+  try {
+    const info = await invoke("engine_path_info", {}, { silent: true });
+    exePathLoaded = true;
+    input.value = info.saved || "";
+    input.placeholder = info.resolved || "No llama-server.exe found";
+    if (!hint) return;
+    const label =
+      info.source === "app_local"
+        ? "Bundled runtime (app data)"
+        : info.source === "bundled_resource"
+          ? "Bundled runtime"
+          : info.source === "saved"
+            ? "Saved executable"
+            : null;
+    if (!label || !info.resolved) {
+      hint.textContent =
+        "No llama-server.exe found. Restore the bundled engines folder or select your own llama.cpp build.";
+    } else {
+      let text = `${label} detected: ${info.resolved}`;
+      if (info.source === "saved") {
+        text += " — clear the field to go back to the bundled runtime.";
+      } else if (!info.saved) {
+        text += " — no action needed, just continue.";
+      } else {
+        text +=
+          " — your saved path is ignored while the bundled runtime is present.";
+      }
+      hint.textContent = text;
+    }
+    hint.title = info.resolved || "";
+  } catch (e) {
+    if (hint) hint.textContent = "Could not read the engine path.";
+    console.error("engine_path_info failed", e);
+  }
+}
+
 async function saveExePath(path) {
-  if (!path) return;
-  el("onboard-exe-path").value = path;
-  await invoke("setting_set", { key: "llama_exe_path", value: path });
-  recordDiagnostic("onboarding:exe-path", { set: true });
+  const input = el("onboard-exe-path");
+  const value = (path || "").trim();
+  if (input) input.value = value;
+  // Never clear a saved override we could not read back (vault still locked).
+  if (!value && !exePathLoaded) return;
+  await invoke("setting_set", { key: "llama_exe_path", value });
+  recordDiagnostic("onboarding:exe-path", { set: Boolean(value) });
+  await refreshEnginePath();
 }
 
 // --- Step 2/3: model import ---
@@ -110,7 +166,8 @@ async function importModel(modelType, resultElId, btnId) {
 
   try {
     const info = await invoke("import_model", { source: path, modelType });
-    const key = modelType === "embed" ? "llama_embed_model" : "llama_chat_model";
+    const key =
+      modelType === "embed" ? "llama_embed_model" : "llama_chat_model";
     await invoke("setting_set", { key, value: info.filename });
     resultEl.className = "onboarding-check-result ok";
     resultEl.textContent = `Imported ${info.name}`;
@@ -129,7 +186,8 @@ async function runEngineCheck() {
   const listEl = el("onboarding-check-list");
   if (!listEl) return;
 
-  listEl.innerHTML = '<div class="onboarding-check-item"><span class="onboarding-spinner"></span> Running system checks…</div>';
+  listEl.innerHTML =
+    '<div class="onboarding-check-item"><span class="onboarding-spinner"></span> Running system checks…</div>';
   el("btn-rerun-checks")?.classList.add("hidden");
 
   try {
@@ -141,7 +199,11 @@ async function runEngineCheck() {
     // 2. Trigger provisioning in background (starts chat/embed servers if configured) and refresh checks when ready.
     invoke("provision_model_cmd", {}, { silent: true })
       .then(async () => {
-        const updatedReport = await invoke("preflight_run", {}, { silent: true });
+        const updatedReport = await invoke(
+          "preflight_run",
+          {},
+          { silent: true },
+        );
         renderChecks(listEl, updatedReport);
       })
       .catch(() => {});
@@ -156,12 +218,18 @@ function renderChecks(listEl, report) {
   for (const check of report.checks || []) {
     const item = document.createElement("div");
     item.className = "onboarding-check-item";
-    const iconName = check.status === "pass" ? "circle-check" : check.status === "warn" ? "circle-alert" : "circle-x";
+    const iconName =
+      check.status === "pass"
+        ? "circle-check"
+        : check.status === "warn"
+          ? "circle-alert"
+          : "circle-x";
     item.innerHTML = `<span><hj-icon name="${iconName}" size="16" aria-hidden="true"></hj-icon> ${escapeHtml(check.label)}</span>
       <span class="badge badge-${check.status}">${check.status}</span>`;
     if (check.message && check.status !== "pass") {
       const msg = document.createElement("div");
-      msg.style.cssText = "width:100%;font-size:12px;color:var(--color-text-muted);margin-top:4px;";
+      msg.style.cssText =
+        "width:100%;font-size:12px;color:var(--color-text-muted);margin-top:4px;";
       msg.textContent = check.message;
       item.appendChild(msg);
     }
@@ -215,18 +283,37 @@ function wire() {
     }
     goTo(currentStep + 1);
   });
-  el("btn-onboarding-skip-persona")?.addEventListener("click", () => goTo(currentStep + 1));
-  el("btn-onboarding-prev")?.addEventListener("click", () => goTo(currentStep - 1));
-  el("btn-onboarding-skip")?.addEventListener("click", () => completeOnboarding(true));
+  el("btn-onboarding-skip-persona")?.addEventListener("click", () =>
+    goTo(currentStep + 1),
+  );
+  el("btn-onboarding-prev")?.addEventListener("click", () =>
+    goTo(currentStep - 1),
+  );
+  el("btn-onboarding-skip")?.addEventListener("click", () =>
+    completeOnboarding(true),
+  );
   el("btn-onboard-browse-exe")?.addEventListener("click", async () => {
     const path = await pickFile([{ name: "Executable", extensions: ["exe"] }]);
     if (path) await saveExePath(path);
   });
-  el("btn-onboard-continue-engine")?.addEventListener("click", () => goTo(currentStep + 1));
+  el("btn-onboard-continue-engine")?.addEventListener("click", async () => {
+    await saveExePath(el("onboard-exe-path")?.value || "");
+    goTo(currentStep + 1);
+  });
   el("btn-onboard-import-chat")?.addEventListener("click", () =>
-    importModel("chat", "onboarding-import-chat-result", "btn-onboard-import-chat"));
+    importModel(
+      "chat",
+      "onboarding-import-chat-result",
+      "btn-onboard-import-chat",
+    ),
+  );
   el("btn-onboard-import-embed")?.addEventListener("click", () =>
-    importModel("embed", "onboarding-import-embed-result", "btn-onboard-import-embed"));
+    importModel(
+      "embed",
+      "onboarding-import-embed-result",
+      "btn-onboard-import-embed",
+    ),
+  );
   el("btn-rerun-checks")?.addEventListener("click", runEngineCheck);
 }
 

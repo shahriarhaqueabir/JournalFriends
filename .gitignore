@@ -9,7 +9,7 @@
 /src-tauri/gen/
 **/*.rs.bk
 build.rs
-/tools/
+
 
 # Binary Locks (Keep root Cargo.lock for deterministic builds)
 Cargo.lock
@@ -52,6 +52,7 @@ coverage/
 /backups/
 /attachments/
 /exports/
+/test-data/
 
 # Database artifacts
 *.db
@@ -112,6 +113,12 @@ tests-e2e/failure-screenshot.png
 .agents/
 /.memory
 *.md
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!SECURITY.md
+!CODE_OF_CONDUCT.md
+!docs/**/*.md
 /.memory
 /AgentDocs
 CHANGELOG.md
@@ -135,3 +142,16 @@ CHANGELOG.md
 
 # Design reference images kept at the repo root (not referenced by src/)
 /background*.png
+
+
+# Tooling build artifacts & scratch (keep js-checks + *.ps1 tracked)
+/tools/db_ops/target/
+/tools/check_sqlcipher_bug.py
+/tools/probe_scratch.rs
+/tools/e2e-cdp*.mjs
+/tools/ui-audit.mjs
+
+# Tooling: keep only the JS harnesses and PowerShell helpers in git
+/tools/*
+!/tools/js-checks/
+!/tools/*.ps1

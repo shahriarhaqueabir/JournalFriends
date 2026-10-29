@@ -37,6 +37,7 @@ pub fn get_chat_system_prompt(
     weekly_review: Option<&crate::db::reports::WeeklyReviewReport>,
     ai_voice: &str,
     mood_context: &str,
+    user_name: Option<&str>,
 ) -> String {
     let now = chrono::Local::now();
     let mut prompt = format!(
@@ -55,6 +56,19 @@ You are caring, thoughtful, and attentive. You listen before you advise, name fe
         now.format("%A, %B %e, %Y"),
         now.format("%l:%M %p")
     );
+
+    // Make the user's identity unambiguous. The model behind Arnold
+    // (Qwythos) has a strong prior about its own name; without this it can
+    // answer "who am I" with the model's name instead of the user's.
+    let user_name = user_name.map(str::trim).filter(|s| !s.is_empty());
+    if let Some(name) = user_name {
+        prompt.push_str(&format!(
+            "\n## User Identity\n- The user's name is: {}.\n- When the user asks \"who am I\", \"what is my name\", or similar, answer with this name. You (Arnold) are the assistant; never confuse yourself with the user.\n",
+            name
+        ));
+    } else {
+        prompt.push_str("\n## User Identity\n- The user's name is not yet known. If they ask, say you do not know yet and offer to remember it.\n");
+    }
 
     let voice = ai_voice.trim();
     if !voice.is_empty() {
@@ -115,11 +129,14 @@ You have access to the user's Memory — durable memories, information, and know
     } else {
         let mut ranked_facts: Vec<_> = facts.iter().collect();
         ranked_facts.sort_by(|a, b| {
-            b.confidence
-                .total_cmp(&a.confidence)
+            let a_user = a.created_by != "ai";
+            let b_user = b.created_by != "ai";
+            b_user
+                .cmp(&a_user)
+                .then_with(|| b.confidence.total_cmp(&a.confidence))
                 .then_with(|| b.created_at.cmp(&a.created_at))
         });
-        for fact in ranked_facts.into_iter().take(5) {
+        for fact in ranked_facts.into_iter().take(10) {
             let content_tail: String = fact.content.chars().take(80).collect();
             prompt.push_str(&format!(
                 "- {}: {} ({})\n",
@@ -176,12 +193,14 @@ You have access to the user's Memory — durable memories, information, and know
 - create_event / update_event / delete_event and create_note / update_note / delete_note create a proposal that the user approves in the Review Inbox; they never write directly. After filing one, tell the user it is waiting for their confirmation.
 - Task tools work the same way: they propose, and the user confirms in the Review Inbox.
 - Use list_memory before update_memory / delete_memory / link_memory so you reference a real item_id.
+- When the user asks about themselves (their name, preferences, profile, habits), call list_memory (and search_journal if needed) to retrieve the latest information. The Knowledge Base snapshot above may be incomplete, so never assume a fact is absent just because it is not listed there.
 - Call only what you need; prefer read-only tools unless the user asked for a change.
 - If a tool returns success=false, read the error and correct your arguments before trying again. Do not repeat an identical failing call.
 - Never claim you changed data; the user approves proposals themselves.
 
 ## Interaction Guidelines
 - Lead with gentle reflection before analysis; name the feeling you heard before exploring it.
+- Never confuse your own identity (Arnold) with the user's. \"Who am I\" refers to the user, never to you or your model.
 - Use the knowledge base to provide personalized responses.
 - If a user asks something related to these facts, use them.
 - Suggest professional help when entries indicate distress; remind the user you are an AI, not a therapist.
@@ -209,6 +228,7 @@ mod tests {
             None,
             "warm",
             "2026-09-21: anxious (manual), 2026-09-22: calm (ai)",
+            None,
         );
         assert!(p.contains("## Role"));
         assert!(p.contains("caring"));
@@ -223,7 +243,7 @@ mod tests {
 
     #[test]
     fn tool_policy_present_without_contradiction() {
-        let p = get_chat_system_prompt(&[], &[], &[], &[], None, "", "");
+        let p = get_chat_system_prompt(&[], &[], &[], &[], None, "", "", None);
         assert!(p.contains("## Tools & Actions"));
         assert!(p.contains("list_tasks"));
         assert!(p.contains("list_events"));
@@ -240,7 +260,7 @@ mod tests {
 
     #[test]
     fn empty_mood_context_omits_section() {
-        let p = get_chat_system_prompt(&[], &[], &[], &[], None, "", "");
+        let p = get_chat_system_prompt(&[], &[], &[], &[], None, "", "", None);
         assert!(!p.contains("## Mood Context"));
     }
 
@@ -294,7 +314,7 @@ mod tests {
             },
         ];
 
-        let prompt = get_chat_system_prompt(&facts, &[], &[], &[], None, "", "");
+        let prompt = get_chat_system_prompt(&facts, &[], &[], &[], None, "", "", None);
         let recent_high = prompt.find("Newer high confidence").unwrap();
         let old_high = prompt.find("Older high confidence").unwrap();
         let recent_low = prompt.find("Recent lower confidence").unwrap();

@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   rust:
     runs-on: windows-latest
@@ -13,10 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - name: Check formatting
         run: cargo fmt --check
       - name: Check build
         run: cargo check
+      - name: Run tests
+        run: cargo test
 
   frontend:
     runs-on: windows-latest
@@ -29,3 +36,20 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem src\js -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }
+      - name: Run Node harnesses
+        shell: pwsh
+        run: |
+          Get-ChildItem ..\tools\js-checks -Filter *.test.mjs | ForEach-Object { node $_.FullName }
+
+  security:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit dependencies
+        run: cargo audit

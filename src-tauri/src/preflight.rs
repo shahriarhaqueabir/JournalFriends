@@ -195,7 +195,8 @@ pub async fn run_preflight(state: &AppState) -> Result<PreflightReport, AppError
                     PreflightCheck::warn(
                         "llama_connection",
                         "LLM backend",
-                        "AI engine not configured — set exe path in Settings.".to_string(),
+                        "AI engine not configured — the bundled llama-server.exe was not found. Reinstall, or point Settings > Engine at a llama.cpp build."
+                            .to_string(),
                     )
                     .with_action(true),
                 );

@@ -78,7 +78,7 @@ impl std::fmt::Display for EmbedStartError {
         match self {
             EmbedStartError::PortInUse(port) => write!(
                 f,
-                "Embed port {} is already in use by another process. Stop it, or change llama_embed_port in Settings.",
+                "Embed port {} is already in use by another process. Restart the engine (it reaps stray llama-server processes), use \"Clear port\" in System, or change llama_embed_port in Settings.",
                 port
             ),
             EmbedStartError::Spawn(e) => write!(f, "Failed to spawn embed server: {}", e),
@@ -102,7 +102,7 @@ impl LlamaEngine {
         }
         if Self::port_in_use(self.config.chat_port) {
             return Err(format!(
-                "Chat port {} is already in use by another process. Stop it, or change llama_chat_port in Settings.",
+                "Chat port {} is already in use by another process. Restart the engine (it reaps stray llama-server processes), use \"Clear port\" in System, or change llama_chat_port in Settings.",
                 self.config.chat_port
             ));
         }
@@ -243,6 +243,14 @@ impl LlamaEngine {
     pub fn embed_url(&self) -> String {
         format!("http://127.0.0.1:{}", self.config.embed_port)
     }
+
+    pub fn chat_port(&self) -> u16 {
+        self.config.chat_port
+    }
+
+    pub fn embed_port(&self) -> u16 {
+        self.config.embed_port
+    }
 }
 
 #[cfg(test)]
@@ -291,11 +299,18 @@ mod tests {
     fn embed_start_error_display_messages() {
         assert_eq!(
             EmbedStartError::PortInUse(8081).to_string(),
-            "Embed port 8081 is already in use by another process. Stop it, or change llama_embed_port in Settings."
+            "Embed port 8081 is already in use by another process. Restart the engine (it reaps stray llama-server processes), use \"Clear port\" in System, or change llama_embed_port in Settings."
         );
         assert_eq!(
             EmbedStartError::Spawn("access is denied".into()).to_string(),
             "Failed to spawn embed server: access is denied"
         );
+    }
+
+    #[test]
+    fn engine_exposes_configured_ports() {
+        let engine = LlamaEngine::new(test_config());
+        assert_eq!(engine.chat_port(), 18080);
+        assert_eq!(engine.embed_port(), 18081);
     }
 }

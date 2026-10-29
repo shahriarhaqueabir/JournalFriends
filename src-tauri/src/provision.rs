@@ -130,6 +130,40 @@ pub async fn provision_model(app: &AppHandle) -> ProvisionOutcome {
         return ProvisionOutcome::Unavailable { reason };
     }
 
+    // Free the ports before spawning: a llama-server left over from a
+    // force-killed previous run keeps the port bound and would make every
+    // launch fail with "port is already in use". A stray llama-server is
+    // reaped; anything else is reported and provisioning stops.
+    let chat_pid = engine.chat_pid().await;
+    let embed_pid = engine.embed_pid().await;
+    for (role, port, own_pid, other_pid) in [
+        (
+            crate::ai::ports::PortRole::Chat,
+            engine.chat_port(),
+            chat_pid,
+            embed_pid,
+        ),
+        (
+            crate::ai::ports::PortRole::Embed,
+            engine.embed_port(),
+            embed_pid,
+            chat_pid,
+        ),
+    ] {
+        if let crate::ai::ports::PortClearance::Blocked { reason, .. } =
+            crate::ai::ports::clear_port(role, port, own_pid, other_pid).await
+        {
+            emit(
+                app,
+                AppEvent::LlamaEngineFailed {
+                    service: role.label().to_string(),
+                    reason: reason.clone(),
+                },
+            );
+            return ProvisionOutcome::Unavailable { reason };
+        }
+    }
+
     // Start servers (idempotent — start_* returns Ok(()) if already running).
     if let Err(e) = engine.start_chat().await {
         let reason = format!("Failed to start chat server: {}", e);

@@ -71,11 +71,14 @@ async function refreshRuntime() {
     setCell(
       "rt-models",
       models.length
-        ? models.map((m) => `${m.kind}: ${m.name} (${fmtBytes(m.size_bytes)})`).join(" · ")
+        ? models
+            .map((m) => `${m.kind}: ${m.name} (${fmtBytes(m.size_bytes)})`)
+            .join(" · ")
         : "no models imported",
     );
 
-    const st = (s) => `${s.status || "unknown"}${s.pid ? ` (pid ${s.pid})` : ""}`;
+    const st = (s) =>
+      `${s.status || "unknown"}${s.pid ? ` (pid ${s.pid})` : ""}`;
     setCell("rt-chat", st(d.engine?.chat || {}));
     setCell("rt-embed", st(d.engine?.embed || {}));
 
@@ -110,10 +113,15 @@ async function refreshLogTail() {
   if (minIdx < 0) return;
 
   try {
-    const resp = await invoke("log_tail", { lines: LOG_TAIL_LINES }, { silent: true });
+    const resp = await invoke(
+      "log_tail",
+      { lines: LOG_TAIL_LINES },
+      { silent: true },
+    );
     const lines = resp?.lines || [];
     if (!lines.length) {
-      pre.innerHTML = '<span class="log-tail-placeholder">Log file not available yet.</span>';
+      pre.innerHTML =
+        '<span class="log-tail-placeholder">Log file not available yet.</span>';
       return;
     }
     const from = LOG_TAIL_LINES - Math.min(LOG_TAIL_LINES, lines.length);
@@ -124,55 +132,67 @@ async function refreshLogTail() {
     pre.innerHTML = filtered
       .map(
         (x) =>
-          `<span class="log-line-${x.level.toLowerCase()}">${x.n}. ${escapeHtml(stripAnsi(x.line))}</span>` + "\n",
+          `<span class="log-line-${x.level.toLowerCase()}">${x.n}. ${escapeHtml(stripAnsi(x.line))}</span>` +
+          "\n",
       )
       .join("");
   } catch {
-    pre.innerHTML = '<span class="log-tail-placeholder">Log file not available yet.</span>';
+    pre.innerHTML =
+      '<span class="log-tail-placeholder">Log file not available yet.</span>';
   }
 }
 
 function wireLogToolbar() {
-  document.getElementById("log-tail-levels")?.addEventListener("click", (ev) => {
-    const btn = ev.target.closest("button[data-level]");
-    if (!btn) return;
-    logLevel = btn.dataset.level || "INFO";
-    document.querySelectorAll("#log-tail-levels button[data-level]").forEach((b) => {
-      const on = b === btn;
-      b.classList.toggle("active", on);
-      b.setAttribute("aria-pressed", String(on));
+  document
+    .getElementById("log-tail-levels")
+    ?.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-level]");
+      if (!btn) return;
+      logLevel = btn.dataset.level || "INFO";
+      document
+        .querySelectorAll("#log-tail-levels button[data-level]")
+        .forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", String(on));
+        });
+      refreshLogTail();
     });
-    refreshLogTail();
-  });
-  document.getElementById("btn-open-log")?.addEventListener("click", async () => {
-    try {
-      const d = await invoke("app_diagnostics", {}, { silent: true });
-      // Wire key is snake_case (D-148) — the old Settings code read d.logPath.
-      if (window.__TAURI__?.shell?.open && d.log_path) {
-        await window.__TAURI__.shell.open(d.log_path);
-      } else {
-        showToast("Cannot open log file here.", { variant: "warn" });
+  document
+    .getElementById("btn-open-log")
+    ?.addEventListener("click", async () => {
+      try {
+        const d = await invoke("app_diagnostics", {}, { silent: true });
+        // Wire key is snake_case (D-148) — the old Settings code read d.logPath.
+        if (window.__TAURI__?.shell?.open && d.log_path) {
+          await window.__TAURI__.shell.open(d.log_path);
+        } else {
+          showToast("Cannot open log file here.", { variant: "warn" });
+        }
+      } catch (e) {
+        console.warn("[SYSTEM] open log failed", e);
       }
-    } catch (e) {
-      console.warn("[SYSTEM] open log failed", e);
-    }
-  });
+    });
 }
 
 function wireCopyButtons() {
-  document.querySelector(".system-page")?.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest("[data-copy-target]");
-    if (!btn) return;
-    const target = document.getElementById(btn.getAttribute("data-copy-target"));
-    const text = target?.textContent?.trim() || "";
-    if (!text || text === "—") return;
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast("Path copied.", { variant: "success" });
-    } catch {
-      showToast("Could not copy the path.", { variant: "warn" });
-    }
-  });
+  document
+    .querySelector(".system-page")
+    ?.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("[data-copy-target]");
+      if (!btn) return;
+      const target = document.getElementById(
+        btn.getAttribute("data-copy-target"),
+      );
+      const text = target?.textContent?.trim() || "";
+      if (!text || text === "—") return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("Path copied.", { variant: "success" });
+      } catch {
+        showToast("Could not copy the path.", { variant: "warn" });
+      }
+    });
 }
 
 // ── Engines ─────────────────────────────────────
@@ -198,7 +218,37 @@ function paintEngine(service, status) {
 function paintHealth(service, ok, latencyMs) {
   const el = document.querySelector(`[data-engine-latency="${service}"]`);
   if (!el) return;
-  el.textContent = ok ? (latencyMs != null ? `${latencyMs} ms` : "ok") : "unreachable";
+  el.textContent = ok
+    ? latencyMs != null
+      ? `${latencyMs} ms`
+      : "ok"
+    : "unreachable";
+}
+
+function paintPortOwners(info) {
+  for (const service of ["chat", "embed"]) {
+    const el = document.querySelector(`[data-engine-owner="${service}"]`);
+    const owner = service === "chat" ? info.chat_owner : info.embed_owner;
+    const ownPid = service === "chat" ? info.chat_pid : info.embed_pid;
+    const clearBtn = document.querySelector(
+      `[data-engine-action="clear-port"][data-service="${service}"]`,
+    );
+    if (!el) continue;
+    const heldBySelf =
+      !!owner && owner.pid != null && owner.pid === ownPid && ownPid != null;
+    const heldByForeign = !!owner && !heldBySelf;
+    if (heldByForeign) {
+      el.textContent = `port held by ${owner.name || "unknown"} (pid ${owner.pid})`;
+      el.classList.add("warn");
+    } else {
+      el.textContent = "";
+      el.classList.remove("warn");
+    }
+    if (clearBtn) {
+      clearBtn.style.display = heldByForeign ? "" : "none";
+      if (heldByForeign) clearBtn.textContent = `Clear port (${owner.pid})`;
+    }
+  }
 }
 
 async function refreshEngines() {
@@ -206,6 +256,12 @@ async function refreshEngines() {
     const s = await invoke("get_engine_status", {}, { silent: true });
     paintEngine("chat", s.chat);
     paintEngine("embed", s.embed);
+    try {
+      const info = await invoke("engine_port_info", {}, { silent: true });
+      paintPortOwners(info);
+    } catch (e) {
+      console.warn("[SYSTEM] engine port info failed", e);
+    }
   } catch (e) {
     console.warn("[SYSTEM] engine status failed", e);
   }
@@ -226,47 +282,75 @@ async function checkHealthNow() {
 }
 
 function wireEngineControls() {
-  document.getElementById("btn-engine-start")?.addEventListener("click", async () => {
-    try {
-      recordDiagnostic("system:engine_start", {});
-      const summary = await invoke("provision_model_cmd");
-      setStatus("engine-start-status", summary, "success");
-      await refreshEngines();
-      await checkHealthNow();
-    } catch (e) {
-      setStatus("engine-start-status", stringifyError(e), "error");
-    }
-  });
+  document
+    .getElementById("btn-engine-start")
+    ?.addEventListener("click", async () => {
+      try {
+        recordDiagnostic("system:engine_start", {});
+        const summary = await invoke("provision_model_cmd");
+        setStatus("engine-start-status", summary, "success");
+        await refreshEngines();
+        await checkHealthNow();
+      } catch (e) {
+        setStatus("engine-start-status", stringifyError(e), "error");
+      }
+    });
 
-  document.getElementById("engine-controls")?.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest("[data-engine-action]");
-    if (!btn) return;
-    const action = btn.dataset.engineAction;
-    const service = btn.dataset.service;
-    if (action === "check") {
-      await checkHealthNow();
-      return;
-    }
-    btn.disabled = true;
-    try {
-      recordDiagnostic("system:engine_action", { action, service });
-      if (action === "restart") await invoke("restart_engine", { service });
-      else if (action === "stop") await invoke("stop_engine", { service });
-      await refreshEngines();
-      await checkHealthNow();
-    } catch {
-      /* ipc.js already toasted the error */
-    } finally {
-      btn.disabled = false;
-    }
-  });
+  document
+    .getElementById("engine-controls")
+    ?.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("[data-engine-action]");
+      if (!btn) return;
+      const action = btn.dataset.engineAction;
+      const service = btn.dataset.service;
+      if (action === "check") {
+        await checkHealthNow();
+        return;
+      }
+      btn.disabled = true;
+      try {
+        recordDiagnostic("system:engine_action", { action, service });
+        let outcome = null;
+        if (action === "restart")
+          outcome = await invoke("restart_engine", { service });
+        else if (action === "stop")
+          outcome = await invoke("stop_engine", { service });
+        else if (action === "clear-port") {
+          if (!confirm(`Force-kill the process holding the ${service} port?`))
+            return;
+          const owner = await invoke("force_clear_port", { service });
+          setStatus(
+            "engine-start-status",
+            owner ? `port cleared (was pid ${owner.pid})` : "port already free",
+            "success",
+          );
+          await refreshEngines();
+          await checkHealthNow();
+          return;
+        }
+        if (outcome && outcome.note)
+          setStatus("engine-start-status", outcome.note, "success");
+        await refreshEngines();
+        await checkHealthNow();
+      } catch (e) {
+        setStatus("engine-start-status", stringifyError(e), "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
 }
 
 // ── Analysis queue ──────────────────────────────
 
 function queueBadge(status) {
   const cls =
-    status === "failed" ? "badge-fail" : status === "done" ? "badge-pass" : status === "processing" ? "badge-info" : "badge-warn";
+    status === "failed"
+      ? "badge-fail"
+      : status === "done"
+        ? "badge-pass"
+        : status === "processing"
+          ? "badge-info"
+          : "badge-warn";
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
 
@@ -278,7 +362,8 @@ async function refreshQueue() {
     const count = document.getElementById("queue-count");
     if (count) count.textContent = rows.length ? `${rows.length} row(s)` : "";
     if (!rows.length) {
-      tbody.innerHTML = '<tr class="table-empty"><td colspan="6">Queue is empty.</td></tr>';
+      tbody.innerHTML =
+        '<tr class="table-empty"><td colspan="6">Queue is empty.</td></tr>';
       return;
     }
     tbody.innerHTML = rows
@@ -305,55 +390,65 @@ async function refreshQueue() {
 }
 
 function wireQueueControls() {
-  document.getElementById("btn-queue-refresh")?.addEventListener("click", refreshQueue);
-  document.getElementById("queue-body")?.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest("button[data-requeue]");
-    if (!btn) return;
-    const entryId = btn.getAttribute("data-requeue");
-    btn.disabled = true;
-    try {
-      recordDiagnostic("system:queue_requeue", { entryId });
-      await invoke("analysis_requeue", { entryId });
-      showToast("Entry re-queued for analysis.", { variant: "success" });
-      await refreshQueue();
-      refreshRuntime(); // queue count + statuses cells move with it
-    } catch {
-      /* ipc.js already toasted the error */
-    } finally {
-      btn.disabled = false;
-    }
-  });
+  document
+    .getElementById("btn-queue-refresh")
+    ?.addEventListener("click", refreshQueue);
+  document
+    .getElementById("queue-body")
+    ?.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-requeue]");
+      if (!btn) return;
+      const entryId = btn.getAttribute("data-requeue");
+      btn.disabled = true;
+      try {
+        recordDiagnostic("system:queue_requeue", { entryId });
+        await invoke("analysis_requeue", { entryId });
+        showToast("Entry re-queued for analysis.", { variant: "success" });
+        await refreshQueue();
+        refreshRuntime(); // queue count + statuses cells move with it
+      } catch {
+        /* ipc.js already toasted the error */
+      } finally {
+        btn.disabled = false;
+      }
+    });
 }
 
 // ── Database ────────────────────────────────────
 
 function wireDbControls() {
-  document.getElementById("btn-backup-now")?.addEventListener("click", async () => {
-    try {
-      recordDiagnostic("system:backup_now", {});
-      const path = await invoke("backup_now");
-      setStatus("db-action-status", `Backup written: ${path}`, "success");
-      showToast("Backup complete.", { variant: "success" });
-    } catch (e) {
-      setStatus("db-action-status", stringifyError(e), "error");
-    }
-  });
+  document
+    .getElementById("btn-backup-now")
+    ?.addEventListener("click", async () => {
+      try {
+        recordDiagnostic("system:backup_now", {});
+        const path = await invoke("backup_now");
+        setStatus("db-action-status", `Backup written: ${path}`, "success");
+        showToast("Backup complete.", { variant: "success" });
+      } catch (e) {
+        setStatus("db-action-status", stringifyError(e), "error");
+      }
+    });
 
-  document.getElementById("btn-open-data-dir")?.addEventListener("click", async () => {
-    try {
-      if (!lastDataDir) {
-        const d = await invoke("app_diagnostics", {}, { silent: true });
-        lastDataDir = d.data_dir || "";
+  document
+    .getElementById("btn-open-data-dir")
+    ?.addEventListener("click", async () => {
+      try {
+        if (!lastDataDir) {
+          const d = await invoke("app_diagnostics", {}, { silent: true });
+          lastDataDir = d.data_dir || "";
+        }
+        if (window.__TAURI__?.shell?.open && lastDataDir) {
+          await window.__TAURI__.shell.open(lastDataDir);
+        } else {
+          showToast("Cannot open the data directory here.", {
+            variant: "warn",
+          });
+        }
+      } catch (e) {
+        console.warn("[SYSTEM] open data dir failed", e);
       }
-      if (window.__TAURI__?.shell?.open && lastDataDir) {
-        await window.__TAURI__.shell.open(lastDataDir);
-      } else {
-        showToast("Cannot open the data directory here.", { variant: "warn" });
-      }
-    } catch (e) {
-      console.warn("[SYSTEM] open data dir failed", e);
-    }
-  });
+    });
 }
 
 // ── SQL runner (read-only, D-147) ───────────────
@@ -380,7 +475,8 @@ function renderSqlResult(res) {
   const truncated = rows.length >= 500 ? " (first 500)" : "";
   if (meta) meta.textContent = `${rows.length} row(s)${truncated} · read-only`;
   const cols = res.columns || [];
-  if (thead) thead.innerHTML = `<tr>${cols.map((c) => `<th>${escapeHtml(String(c))}</th>`).join("")}</tr>`;
+  if (thead)
+    thead.innerHTML = `<tr>${cols.map((c) => `<th>${escapeHtml(String(c))}</th>`).join("")}</tr>`;
   if (tbody) {
     tbody.innerHTML = rows
       .map(
@@ -404,7 +500,11 @@ async function runSql() {
     recordDiagnostic("system:sql_run", { chars: query.length });
     const res = await invoke("sql_run", { query });
     renderSqlResult(res);
-    setStatus("sys-sql-status", `${(res.rows || []).length} row(s) · read-only`, "success");
+    setStatus(
+      "sys-sql-status",
+      `${(res.rows || []).length} row(s) · read-only`,
+      "success",
+    );
   } catch (e) {
     result?.classList.add("hidden");
     setStatus("sys-sql-status", stringifyError(e), "error");
@@ -413,9 +513,11 @@ async function runSql() {
 
 function wireSqlControls() {
   document.getElementById("btn-sql-run")?.addEventListener("click", runSql);
-  document.getElementById("sys-sql-input")?.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) runSql();
-  });
+  document
+    .getElementById("sys-sql-input")
+    ?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) runSql();
+    });
 }
 
 export function initSystem() {

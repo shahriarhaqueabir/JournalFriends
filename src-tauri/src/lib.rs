@@ -758,6 +758,55 @@ async fn ai_chat(
         .unwrap_or_default()
     };
 
+    // Resolve the user's name from their memory items so the prompt can state it
+    // unambiguously. Prefer explicit "name"/"call you" items, then any short
+    // "person"-category item, so the model never substitutes its own name.
+    // Resolve the user's name. Prefer an explicit "name" item (saved from
+    // chat) over the onboarding "What should I call you?" nickname, then any
+    // short person-category item. Facts are ordered by updated_at DESC, so the
+    // most recently saved name wins within each tier.
+    let user_name: Option<String> = {
+        let mut candidate: Option<String> = None;
+        // Tier 1: explicit name items (title contains "name" but not the
+        // onboarding "call you" phrasing, which may hold a nickname).
+        for item in &facts {
+            let title_lc = item.title.to_lowercase();
+            if title_lc.contains("name") && !title_lc.contains("call you") {
+                let c = item.content.trim();
+                if !c.is_empty() && c.chars().count() <= 60 {
+                    candidate = Some(c.to_string());
+                    break;
+                }
+            }
+        }
+        // Tier 2: onboarding "What should I call you?" (may be a nickname).
+        if candidate.is_none() {
+            for item in &facts {
+                let title_lc = item.title.to_lowercase();
+                if title_lc.contains("call you") || title_lc.contains("what should i call") {
+                    let c = item.content.trim();
+                    if !c.is_empty() && c.chars().count() <= 60 {
+                        candidate = Some(c.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+        // Tier 3: any short person-category item.
+        if candidate.is_none() {
+            for item in &facts {
+                if item.category == "person" {
+                    let c = item.content.trim();
+                    if !c.is_empty() && c.chars().count() <= 40 && !c.contains('.') {
+                        candidate = Some(c.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+        candidate
+    };
+
     // T-02/T-03: Hybrid Context (Keyword + Semantic)
     let journal_context = {
         let mut results = Vec::new();
@@ -924,6 +973,7 @@ async fn ai_chat(
         weekly_review.as_ref(),
         &ai_voice,
         &mood_context_str,
+        user_name.as_deref(),
     );
 
     // Build tool executor and call the tool-aware chat pipeline
@@ -2109,25 +2159,103 @@ fn bundled_engine_resource(app: &tauri::AppHandle) -> Option<std::path::PathBuf>
     packaged
 }
 
-/// Resolve the llama-server executable to use.
+/// Where the resolved llama-server executable came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub(crate) enum EnginePathSource {
+    /// `<data>/engines/llama-server.exe` staged at runtime (D-128).
+    AppLocal,
+    /// `engines/llama-server.exe` shipped next to the installed app.
+    BundledResource,
+    /// The user's `llama_exe_path` setting.
+    Saved,
+    /// Nothing usable was found.
+    None,
+}
+
+impl EnginePathSource {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::AppLocal => "app_local",
+            Self::BundledResource => "bundled_resource",
+            Self::Saved => "saved",
+            Self::None => "none",
+        }
+    }
+}
+
+/// Resolve the llama-server executable to use, plus where it came from.
 ///
 /// Precedence: app-local `<data>/engines`, packaged Tauri resource, saved path.
+pub(crate) fn resolve_engine_exe_with_source(
+    data_dir: &std::path::Path,
+    resource_exe: Option<&std::path::Path>,
+    saved: &str,
+) -> (String, EnginePathSource) {
+    let bundled = bundled_engine_exe(data_dir);
+    if bundled.is_file() {
+        return (
+            bundled.to_string_lossy().into_owned(),
+            EnginePathSource::AppLocal,
+        );
+    }
+    if let Some(resource) = resource_exe.filter(|path| path.is_file()) {
+        return (
+            resource.to_string_lossy().into_owned(),
+            EnginePathSource::BundledResource,
+        );
+    }
+    if !saved.is_empty() && std::path::Path::new(saved).is_file() {
+        return (saved.to_string(), EnginePathSource::Saved);
+    }
+    (String::new(), EnginePathSource::None)
+}
+
+/// Resolve the llama-server executable to use.
 pub(crate) fn resolve_engine_exe(
     data_dir: &std::path::Path,
     resource_exe: Option<&std::path::Path>,
     saved: &str,
 ) -> String {
-    let bundled = bundled_engine_exe(data_dir);
-    if bundled.is_file() {
-        return bundled.to_string_lossy().into_owned();
-    }
-    if let Some(resource) = resource_exe.filter(|path| path.is_file()) {
-        return resource.to_string_lossy().into_owned();
-    }
-    if !saved.is_empty() && std::path::Path::new(saved).is_file() {
-        return saved.to_string();
-    }
-    String::new()
+    resolve_engine_exe_with_source(data_dir, resource_exe, saved).0
+}
+
+/// Wire shape for `engine_path_info` (D-148: snake_case keys).
+#[derive(Debug, Serialize)]
+struct EnginePathInfo {
+    /// Executable the app will launch; empty when no runtime was found.
+    resolved: String,
+    /// One of `app_local`, `bundled_resource`, `saved`, `none`.
+    source: String,
+    /// User override from Settings (empty when unset or the vault is locked).
+    saved: String,
+}
+
+/// Report the llama-server executable the app will actually launch, so the UI
+/// can show the bundled runtime path instead of a placeholder. Does not require
+/// an unlocked vault — the saved override is simply empty while locked.
+#[tauri::command]
+async fn engine_path_info(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<EnginePathInfo, AppError> {
+    let saved = match state.db() {
+        Ok(pool) => db::pool::with_conn(pool, |conn| {
+            db::settings::get_setting(conn, "llama_exe_path")
+        })
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_default(),
+        Err(_) => String::new(),
+    };
+    let resource = bundled_engine_resource(&app);
+    let (resolved, source) =
+        resolve_engine_exe_with_source(&state.paths.data_dir, resource.as_deref(), &saved);
+    Ok(EnginePathInfo {
+        resolved,
+        source: source.as_str().to_string(),
+        saved,
+    })
 }
 
 /// Resolve the model file for a role (chat/embed).
@@ -2268,12 +2396,73 @@ async fn rebuild_engine(
     Ok(true)
 }
 
+/// What a Stop / Restart actually did, so the UI can report the truth instead
+/// of assuming the port was free.
+#[derive(Debug, Serialize)]
+struct EngineActionOutcome {
+    service: String,
+    /// Stray llama-server reaped to free the port (leftover from a previous run).
+    reaped: Option<ai::ports::PortOwner>,
+    /// Human summary for the toast / status line.
+    note: String,
+}
+
+fn port_role(service: &str) -> Result<ai::ports::PortRole, AppError> {
+    match service {
+        "chat" => Ok(ai::ports::PortRole::Chat),
+        "embed" => Ok(ai::ports::PortRole::Embed),
+        _ => Err(AppError::AiError("Unknown service".into())),
+    }
+}
+
+fn reaped_owner(clearance: &ai::ports::PortClearance) -> Option<ai::ports::PortOwner> {
+    match clearance {
+        ai::ports::PortClearance::Reaped(owner) => Some(owner.clone()),
+        _ => None,
+    }
+}
+
+fn action_note(verb: &str, service: &str, clearance: &ai::ports::PortClearance) -> String {
+    match clearance {
+        ai::ports::PortClearance::Reaped(owner) => format!(
+            "{} engine {} - freed port {} by stopping a stray llama-server (pid {})",
+            service, verb, owner.port, owner.pid
+        ),
+        _ => format!("{} engine {}", service, verb),
+    }
+}
+
+/// Free a service port after its own child was stopped. `own_pid` is the pid the
+/// current process owned (so a failed kill cannot be mistaken for a squatter),
+/// `other_pid` the sibling engine (a shared port means a config mistake).
+async fn free_engine_port(
+    role: ai::ports::PortRole,
+    port: u16,
+    own_pid: Option<u32>,
+    other_pid: Option<u32>,
+) -> Result<ai::ports::PortClearance, AppError> {
+    let clearance = ai::ports::clear_port(role, port, own_pid, other_pid).await;
+    match &clearance {
+        ai::ports::PortClearance::Blocked { reason, .. } => {
+            Err(AppError::AiError(reason.clone()))
+        }
+        ai::ports::PortClearance::OwnEngine(owner) => Err(AppError::AiError(format!(
+            "Port {} is still held by Arnold's own {} engine (pid {}) - it did not exit. Press Stop, then Start.",
+            owner.port,
+            role.label(),
+            owner.pid
+        ))),
+        _ => Ok(clearance),
+    }
+}
+
 #[tauri::command]
 async fn restart_engine(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     service: String,
-) -> Result<(), AppError> {
+) -> Result<EngineActionOutcome, AppError> {
+    let role = port_role(&service)?;
     let configured = rebuild_engine(&app, &state).await?;
     if !configured {
         return Err(AppError::AiError(
@@ -2282,22 +2471,31 @@ async fn restart_engine(
         ));
     }
     let engine = state.engine()?;
-    match service.as_str() {
-        "chat" => {
-            engine.stop_chat().await;
-            engine
-                .start_chat()
-                .await
-                .map_err(|e| AppError::AiError(e))?;
-            crate::events::emit(
-                &app,
-                crate::events::AppEvent::LlamaEngineStarted {
-                    service: "chat".to_string(),
-                },
-            );
-        }
-        "embed" => {
-            engine.stop_embed().await;
+    let (port, own_pid, other_pid) = match role {
+        ai::ports::PortRole::Chat => (
+            engine.chat_port(),
+            engine.chat_pid().await,
+            engine.embed_pid().await,
+        ),
+        ai::ports::PortRole::Embed => (
+            engine.embed_port(),
+            engine.embed_pid().await,
+            engine.chat_pid().await,
+        ),
+    };
+
+    // Stop the engine this process owns, then free the port. A leftover
+    // llama-server from a force-killed previous run is reaped here; anything
+    // else is refused with a reason the UI can act on.
+    match role {
+        ai::ports::PortRole::Chat => engine.stop_chat().await,
+        ai::ports::PortRole::Embed => engine.stop_embed().await,
+    }
+    let clearance = free_engine_port(role, port, own_pid, other_pid).await?;
+
+    match role {
+        ai::ports::PortRole::Chat => engine.start_chat().await.map_err(AppError::AiError)?,
+        ai::ports::PortRole::Embed => {
             if let Err(e) = engine.start_embed().await {
                 let reason =
                     crate::provision::embed_start_failure_reason(state.llama().ok().as_ref(), e)
@@ -2307,16 +2505,19 @@ async fn restart_engine(
             if let Ok(client) = state.llama() {
                 client.embed_circuit_reset();
             }
-            crate::events::emit(
-                &app,
-                crate::events::AppEvent::LlamaEngineStarted {
-                    service: "embed".to_string(),
-                },
-            );
         }
-        _ => return Err(AppError::AiError("Unknown service".into())),
     }
-    Ok(())
+    crate::events::emit(
+        &app,
+        crate::events::AppEvent::LlamaEngineStarted {
+            service: service.clone(),
+        },
+    );
+    Ok(EngineActionOutcome {
+        reaped: reaped_owner(&clearance),
+        note: action_note("restarted", &service, &clearance),
+        service,
+    })
 }
 
 #[tauri::command]
@@ -2324,18 +2525,99 @@ async fn stop_engine(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     service: String,
-) -> Result<(), AppError> {
+) -> Result<EngineActionOutcome, AppError> {
+    let role = port_role(&service)?;
     let engine = state.engine()?;
-    match service.as_str() {
-        "chat" => engine.stop_chat().await,
-        "embed" => engine.stop_embed().await,
-        _ => return Err(AppError::AiError("Unknown service".into())),
+    let (port, own_pid, other_pid) = match role {
+        ai::ports::PortRole::Chat => (
+            engine.chat_port(),
+            engine.chat_pid().await,
+            engine.embed_pid().await,
+        ),
+        ai::ports::PortRole::Embed => (
+            engine.embed_port(),
+            engine.embed_pid().await,
+            engine.chat_pid().await,
+        ),
+    };
+    match role {
+        ai::ports::PortRole::Chat => engine.stop_chat().await,
+        ai::ports::PortRole::Embed => engine.stop_embed().await,
     }
+    let clearance = free_engine_port(role, port, own_pid, other_pid).await?;
     crate::events::emit(
         &app,
-        crate::events::AppEvent::LlamaEngineStopped { service },
+        crate::events::AppEvent::LlamaEngineStopped {
+            service: service.clone(),
+        },
     );
-    Ok(())
+    Ok(EngineActionOutcome {
+        reaped: reaped_owner(&clearance),
+        note: action_note("stopped", &service, &clearance),
+        service,
+    })
+}
+
+/// Wire shape for `engine_port_info` (D-148: snake_case keys).
+#[derive(Debug, Serialize)]
+struct EnginePortInfo {
+    chat_port: u16,
+    embed_port: u16,
+    /// Pid the app itself owns for each service (None when stopped).
+    chat_pid: Option<u32>,
+    embed_pid: Option<u32>,
+    /// Whoever is LISTENING on the port, including the app's own engine.
+    chat_owner: Option<ai::ports::PortOwner>,
+    embed_owner: Option<ai::ports::PortOwner>,
+}
+
+/// Report who holds the two engine ports so System can show it and offer an
+/// explicit "Clear port" when the holder is not a llama-server.
+#[tauri::command]
+async fn engine_port_info(state: tauri::State<'_, AppState>) -> Result<EnginePortInfo, AppError> {
+    let (chat_port, embed_port, chat_pid, embed_pid) = match state.engine() {
+        Ok(engine) => (
+            engine.chat_port(),
+            engine.embed_port(),
+            engine.chat_pid().await,
+            engine.embed_pid().await,
+        ),
+        // Engine not built yet (locked vault / missing runtime): report the
+        // seeded defaults so a squatter is still visible pre-configuration.
+        Err(_) => (8080, 8081, None, None),
+    };
+    let (chat_owner, embed_owner) = tokio::join!(
+        ai::ports::owner_of(chat_port),
+        ai::ports::owner_of(embed_port)
+    );
+    Ok(EnginePortInfo {
+        chat_port,
+        embed_port,
+        chat_pid,
+        embed_pid,
+        chat_owner,
+        embed_owner,
+    })
+}
+
+/// Explicit, user-confirmed kill of whatever holds a service port (any process,
+/// not just llama-server). Refuses Arnold's own live engine — use Stop for that.
+#[tauri::command]
+async fn force_clear_port(
+    state: tauri::State<'_, AppState>,
+    service: String,
+) -> Result<Option<ai::ports::PortOwner>, AppError> {
+    let role = port_role(&service)?;
+    let engine = state.engine().map_err(|_| {
+        AppError::AiError("LLM engine not configured - nothing to clear for.".to_string())
+    })?;
+    let (port, own_pid) = match role {
+        ai::ports::PortRole::Chat => (engine.chat_port(), engine.chat_pid().await),
+        ai::ports::PortRole::Embed => (engine.embed_port(), engine.embed_pid().await),
+    };
+    ai::ports::force_clear(role, port, own_pid)
+        .await
+        .map_err(AppError::AiError)
 }
 
 #[tauri::command]
@@ -3317,8 +3599,11 @@ pub fn run() {
             list_embed_models,
             import_model,
             check_engine_health,
+            engine_path_info,
             restart_engine,
             stop_engine,
+            engine_port_info,
+            force_clear_port,
             get_engine_status,
             setting_get,
             setting_set,
@@ -3356,6 +3641,7 @@ pub fn run() {
 #[cfg(test)]
 mod engine_path_tests {
     use super::resolve_engine_exe;
+    use super::{resolve_engine_exe_with_source, EnginePathSource};
     use std::path::Path;
 
     #[test]
@@ -3398,6 +3684,48 @@ mod engine_path_tests {
             )),
             saved_engine
         );
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn engine_resolution_reports_where_the_path_came_from() {
+        let root =
+            std::env::temp_dir().join(format!("arnold-engine-source-{}", uuid::Uuid::new_v4()));
+        let data_dir = root.join("data");
+        let local_engine = data_dir.join("engines/llama-server.exe");
+        let resource_engine = root.join("resources/engines/llama-server.exe");
+        let saved_engine = root.join("custom/llama-server.exe");
+        for path in [&local_engine, &resource_engine, &saved_engine] {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, b"test runtime").unwrap();
+        }
+        let saved = saved_engine.to_str().unwrap();
+
+        let (path, source) =
+            resolve_engine_exe_with_source(&data_dir, Some(&resource_engine), saved);
+        assert_eq!(std::path::PathBuf::from(&path), local_engine);
+        assert_eq!(source, EnginePathSource::AppLocal);
+        assert_eq!(source.as_str(), "app_local");
+
+        std::fs::remove_file(&local_engine).unwrap();
+        let (path, source) =
+            resolve_engine_exe_with_source(&data_dir, Some(&resource_engine), saved);
+        assert_eq!(std::path::PathBuf::from(&path), resource_engine);
+        assert_eq!(source, EnginePathSource::BundledResource);
+        assert_eq!(source.as_str(), "bundled_resource");
+
+        let (path, source) =
+            resolve_engine_exe_with_source(&data_dir, Some(Path::new("missing.exe")), saved);
+        assert_eq!(std::path::PathBuf::from(&path), saved_engine);
+        assert_eq!(source, EnginePathSource::Saved);
+        assert_eq!(source.as_str(), "saved");
+
+        std::fs::remove_file(&saved_engine).unwrap();
+        let (path, source) = resolve_engine_exe_with_source(&data_dir, None, saved);
+        assert!(path.is_empty());
+        assert_eq!(source, EnginePathSource::None);
+        assert_eq!(source.as_str(), "none");
 
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -3485,6 +3813,73 @@ mod wire_tests {
             ready.get("conversationId").is_none(),
             "camelCase leak on wire: conversationId"
         );
+    }
+
+    #[test]
+    fn engine_path_info_serializes_snake_case_wire_keys() {
+        let info = EnginePathInfo {
+            resolved: "C:/app/resources/engines/llama-server.exe".to_string(),
+            source: "bundled_resource".to_string(),
+            saved: String::new(),
+        };
+        let v = serde_json::to_value(&info).expect("EnginePathInfo must serialize");
+        for key in ["resolved", "source", "saved"] {
+            assert!(v.get(key).is_some(), "missing wire key: {key}");
+        }
+        assert_eq!(v["source"], "bundled_resource");
+        // The UI reads snake_case (D-148); a camelCase leak would blank the hint.
+        assert!(v.get("savedPath").is_none(), "camelCase leak on wire");
+    }
+
+    #[test]
+    fn engine_port_info_serializes_snake_case_wire_keys() {
+        let owner = crate::ai::ports::PortOwner {
+            port: 8080,
+            pid: 13008,
+            name: "llama-server.exe".to_string(),
+            exe: Some("C:/app/engines/llama-server.exe".to_string()),
+            command: String::new(),
+            is_llama_server: true,
+        };
+        let info = EnginePortInfo {
+            chat_port: 8080,
+            embed_port: 8081,
+            chat_pid: Some(13008),
+            embed_pid: None,
+            chat_owner: Some(owner),
+            embed_owner: None,
+        };
+        let v = serde_json::to_value(&info).expect("EnginePortInfo must serialize");
+        for key in [
+            "chat_port",
+            "embed_port",
+            "chat_pid",
+            "embed_pid",
+            "chat_owner",
+            "embed_owner",
+        ] {
+            assert!(v.get(key).is_some(), "missing wire key: {key}");
+        }
+        assert_eq!(v["chat_owner"]["is_llama_server"], true);
+        assert_eq!(v["chat_owner"]["pid"], 13008);
+        assert!(v.get("chatPort").is_none(), "camelCase leak on wire");
+        assert!(v["chat_owner"].get("isLlamaServer").is_none());
+        // The System tab branches on a null owner, so it must serialize as null.
+        assert!(v["embed_owner"].is_null());
+    }
+
+    #[test]
+    fn engine_action_outcome_serializes_snake_case_wire_keys() {
+        let outcome = EngineActionOutcome {
+            service: "chat".to_string(),
+            reaped: None,
+            note: "chat engine restarted".to_string(),
+        };
+        let v = serde_json::to_value(&outcome).expect("EngineActionOutcome must serialize");
+        for key in ["service", "reaped", "note"] {
+            assert!(v.get(key).is_some(), "missing wire key: {key}");
+        }
+        assert!(v.get("reapedPid").is_none(), "camelCase leak on wire");
     }
 }
 

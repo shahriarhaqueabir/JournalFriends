@@ -18,7 +18,11 @@ export async function initSettings() {
   const btnChangeVault = document.getElementById("btn-change-vault-password");
   const vaultStatusEl = document.getElementById("vault-settings-status");
   const vaultErrorEl = document.getElementById("vault-password-error");
-  const vaultInputs = ["vault-current-password", "vault-new-password", "vault-confirm-new-password"]
+  const vaultInputs = [
+    "vault-current-password",
+    "vault-new-password",
+    "vault-confirm-new-password",
+  ]
     .map((id) => document.getElementById(id))
     .filter(Boolean);
 
@@ -50,27 +54,32 @@ export async function initSettings() {
   // journal content on the backend; the UI just passes the two passwords.
   if (btnChangeVault) {
     btnChangeVault.addEventListener("click", async () => {
-      const currentPassword = document.getElementById("vault-current-password").value;
+      const currentPassword = document.getElementById(
+        "vault-current-password",
+      ).value;
       const newPassword = document.getElementById("vault-new-password").value;
-      const confirmPassword = document.getElementById("vault-confirm-new-password").value;
+      const confirmPassword = document.getElementById(
+        "vault-confirm-new-password",
+      ).value;
 
       clearVaultError();
       if (!currentPassword || !newPassword) {
-        showVaultError(
-          "Enter both the current and a new master password.",
-          ["vault-current-password", "vault-new-password"],
-        );
+        showVaultError("Enter both the current and a new master password.", [
+          "vault-current-password",
+          "vault-new-password",
+        ]);
         return;
       }
       if (newPassword !== confirmPassword) {
-        showVaultError(
-          "The new password and its confirmation do not match.",
-          ["vault-confirm-new-password"],
-        );
+        showVaultError("The new password and its confirmation do not match.", [
+          "vault-confirm-new-password",
+        ]);
         return;
       }
       if (newPassword.length < 4) {
-        showVaultError("The new password must be at least 4 characters.", ["vault-new-password"]);
+        showVaultError("The new password must be at least 4 characters.", [
+          "vault-new-password",
+        ]);
         return;
       }
 
@@ -89,7 +98,9 @@ export async function initSettings() {
         vaultStatusEl.className = "settings-status success";
         vaultStatusEl.textContent =
           "Master password changed — your journal was re-encrypted with the new password.";
-        showToast("Vault password changed successfully.", { variant: "success" });
+        showToast("Vault password changed successfully.", {
+          variant: "success",
+        });
       } catch (e) {
         console.error("Failed to change vault password", e);
         showVaultError(stringifyError(e), ["vault-current-password"]);
@@ -133,25 +144,30 @@ export async function initSettings() {
       return;
     }
 
-      try {
-        btnSubmitBug.disabled = true;
-        btnSubmitBug.textContent = "Generating...";
-        statusEl.className = "settings-status";
-        statusEl.textContent = "";
+    try {
+      btnSubmitBug.disabled = true;
+      btnSubmitBug.textContent = "Generating...";
+      statusEl.className = "settings-status";
+      statusEl.textContent = "";
       recordDiagnostic("bug_report:requested", {
         feedback_length: feedback.length,
         frontend_event_count: getDiagnosticsSnapshot().length,
       });
 
-      const appDiagnostics = await invoke("app_diagnostics", {}, { silent: true }).catch((err) => ({
+      const appDiagnostics = await invoke(
+        "app_diagnostics",
+        {},
+        { silent: true },
+      ).catch((err) => ({
         error: stringifyError(err),
       }));
 
       const reportPath = await invoke("report_bug", {
-        userFeedback: `${feedback}\n\n## Frontend Diagnostics\n${JSON.stringify(getDiagnosticsSnapshot(), null, 2)}`
-          + `\n\n## App Diagnostics\n${JSON.stringify(appDiagnostics, null, 2)}`
+        userFeedback:
+          `${feedback}\n\n## Frontend Diagnostics\n${JSON.stringify(getDiagnosticsSnapshot(), null, 2)}` +
+          `\n\n## App Diagnostics\n${JSON.stringify(appDiagnostics, null, 2)}`,
       });
-      
+
       feedbackInput.value = "";
       statusEl.className = "settings-status success";
       statusEl.textContent = `Bug report generated successfully at:\n${reportPath}`;
@@ -165,7 +181,9 @@ export async function initSettings() {
     }
   });
 
-  const btnRestartOnboarding = document.getElementById("btn-restart-onboarding");
+  const btnRestartOnboarding = document.getElementById(
+    "btn-restart-onboarding",
+  );
   if (btnRestartOnboarding) {
     console.log("[SETTINGS] Wiring restart onboarding button");
     let confirmPending = false;
@@ -195,7 +213,9 @@ export async function initSettings() {
         btnRestartOnboarding.disabled = true;
         await invoke("restart_onboarding");
         // Backend emits OnboardingRequired → app.js shows the wizard immediately.
-        showToast("Onboarding restarted. Setup wizard is opening…", { variant: "success" });
+        showToast("Onboarding restarted. Setup wizard is opening…", {
+          variant: "success",
+        });
       } catch (e) {
         showError(e, { title: "Failed to restart onboarding" });
       } finally {
@@ -263,17 +283,28 @@ function renderSystemCheck(summaryEl, listEl, report) {
   const failCount = checks.filter((c) => c.status === "fail").length;
   const warnCount = checks.filter((c) => c.status === "warn").length;
   const passCount = total - failCount - warnCount;
-  const icons = { pass: "circle-check", warn: "circle-alert", fail: "circle-x" };
+  const icons = {
+    pass: "circle-check",
+    warn: "circle-alert",
+    fail: "circle-x",
+  };
 
   for (const check of checks) {
-    const status = check.status === "pass" ? "pass" : check.status === "warn" ? "warn" : "fail";
+    const status =
+      check.status === "pass"
+        ? "pass"
+        : check.status === "warn"
+          ? "warn"
+          : "fail";
     const item = document.createElement("div");
     item.className = `system-check-item system-check-${status}`;
     item.innerHTML =
       `<span class="system-check-icon"><hj-icon name="${icons[status]}" size="16" aria-hidden="true"></hj-icon></span>` +
       `<div class="system-check-content">` +
       `<div class="system-check-label">${escapeHtml(check.label)}</div>` +
-      (check.message ? `<div class="system-check-message">${escapeHtml(check.message)}</div>` : "") +
+      (check.message
+        ? `<div class="system-check-message">${escapeHtml(check.message)}</div>`
+        : "") +
       `</div>` +
       `<span class="badge badge-${status}">${status}</span>`;
     listEl.appendChild(item);
@@ -301,11 +332,19 @@ function renderSystemCheck(summaryEl, listEl, report) {
     `<div class="summary-text">${text}</div>` +
     `<div class="summary-counts">` +
     `<span class="count-chip count-pass">${passCount} passed</span>` +
-    (warnCount ? `<span class="count-chip count-warn">${warnCount} warning${warnCount === 1 ? "" : "s"}</span>` : "") +
-    (failCount ? `<span class="count-chip count-fail">${failCount} failed</span>` : "") +
+    (warnCount
+      ? `<span class="count-chip count-warn">${warnCount} warning${warnCount === 1 ? "" : "s"}</span>`
+      : "") +
+    (failCount
+      ? `<span class="count-chip count-fail">${failCount} failed</span>`
+      : "") +
     `</div>`;
 
-  recordDiagnostic("system_check:complete", { total, fail: failCount, warn: warnCount });
+  recordDiagnostic("system_check:complete", {
+    total,
+    fail: failCount,
+    warn: warnCount,
+  });
   window.renderIcons?.();
 }
 
@@ -322,27 +361,72 @@ async function initLLMEngineSection() {
   const chatPortLabel = document.getElementById("chat-port-label");
   const embedPortLabel = document.getElementById("embed-port-label");
   const exePath = document.getElementById("llama-exe-path");
+  const exeHint = document.getElementById("llama-exe-hint");
   const ngl = document.getElementById("llama-ngl");
   const ctxSize = document.getElementById("llama-ctx-size");
   if (!chatSelect || !embedSelect) return;
 
+  // Show the executable the backend actually launches. Resolution happens in
+  // Rust (app-data engines/ → packaged resource → saved override), so the UI
+  // reports the real path instead of a made-up placeholder.
+  async function refreshEnginePathHint() {
+    try {
+      const info = await invoke("engine_path_info", {}, { silent: true });
+      if (exePath)
+        exePath.placeholder = info.resolved || "No llama-server.exe found";
+      if (!exeHint) return;
+      const savedPath = (exePath?.value || "").trim();
+      const label =
+        info.source === "app_local"
+          ? "Bundled runtime (app data)"
+          : info.source === "bundled_resource"
+            ? "Bundled runtime"
+            : info.source === "saved"
+              ? "Saved executable"
+              : null;
+      if (!label || !info.resolved) {
+        exeHint.textContent =
+          "No llama-server.exe found. Restore the bundled engines folder or select your own llama.cpp build.";
+      } else {
+        let text = `${label}: ${info.resolved}`;
+        if (savedPath && info.source !== "saved") {
+          text +=
+            " — the saved path is ignored while the bundled runtime is present.";
+        }
+        exeHint.textContent = text;
+      }
+      exeHint.title = info.resolved || "";
+    } catch (e) {
+      if (exeHint) exeHint.textContent = "Could not read the engine path.";
+      console.error("[LLM ENGINE] engine_path_info failed", e);
+    }
+  }
+
   async function loadSettings() {
     try {
-      const [chatPort, embedPort, savedNgl, savedCtx, savedExe, savedChat, savedEmbed] =
-        await Promise.all([
-          invoke("setting_get", { key: "llama_chat_port" }),
-          invoke("setting_get", { key: "llama_embed_port" }),
-          invoke("setting_get", { key: "llama_ngl" }),
-          invoke("setting_get", { key: "llama_ctx_size" }),
-          invoke("setting_get", { key: "llama_exe_path" }),
-          invoke("setting_get", { key: "llama_chat_model" }),
-          invoke("setting_get", { key: "llama_embed_model" }),
-        ]);
+      const [
+        chatPort,
+        embedPort,
+        savedNgl,
+        savedCtx,
+        savedExe,
+        savedChat,
+        savedEmbed,
+      ] = await Promise.all([
+        invoke("setting_get", { key: "llama_chat_port" }),
+        invoke("setting_get", { key: "llama_embed_port" }),
+        invoke("setting_get", { key: "llama_ngl" }),
+        invoke("setting_get", { key: "llama_ctx_size" }),
+        invoke("setting_get", { key: "llama_exe_path" }),
+        invoke("setting_get", { key: "llama_chat_model" }),
+        invoke("setting_get", { key: "llama_embed_model" }),
+      ]);
       if (chatPortLabel) chatPortLabel.textContent = `:${chatPort || "8080"}`;
-      if (embedPortLabel) embedPortLabel.textContent = `:${embedPort || "8081"}`;
+      if (embedPortLabel)
+        embedPortLabel.textContent = `:${embedPort || "8081"}`;
       if (exePath) {
         exePath.value = savedExe || "";
-        exePath.placeholder = savedExe ? "" : "Bundled: …\\engines\\llama-server.exe";
+        exePath.placeholder = "";
       }
       if (ngl) ngl.value = savedNgl || "99";
       if (ctxSize) ctxSize.value = savedCtx || "16384";
@@ -354,20 +438,21 @@ async function initLLMEngineSection() {
 
   async function refreshModelList() {
     try {
-      const [chatModels, embedModels, savedChat, savedEmbed] = await Promise.all([
-        invoke("list_chat_models"),
-        invoke("list_embed_models"),
-        invoke("setting_get", { key: "llama_chat_model" }),
-        invoke("setting_get", { key: "llama_embed_model" }),
-      ]);
+      const [chatModels, embedModels, savedChat, savedEmbed] =
+        await Promise.all([
+          invoke("list_chat_models"),
+          invoke("list_embed_models"),
+          invoke("setting_get", { key: "llama_chat_model" }),
+          invoke("setting_get", { key: "llama_embed_model" }),
+        ]);
       chatSelect.innerHTML =
-        (chatModels && chatModels.length
+        chatModels && chatModels.length
           ? chatModels.map((m) => optionHtml(m, savedChat))
-          : '<option value="">No chat GGUF imported</option>');
+          : '<option value="">No chat GGUF imported</option>';
       embedSelect.innerHTML =
-        (embedModels && embedModels.length
+        embedModels && embedModels.length
           ? embedModels.map((m) => optionHtml(m, savedEmbed))
-          : '<option value="">No embed GGUF imported</option>');
+          : '<option value="">No embed GGUF imported</option>';
     } catch (e) {
       console.error("[LLM ENGINE] refreshModelList failed", e);
     }
@@ -410,21 +495,30 @@ async function initLLMEngineSection() {
     }
   }
 
-  document.getElementById("btn-browse-exe")?.addEventListener("click", async () => {
-    const path = await pickFile("exe");
-    if (path) {
-      exePath.value = path;
-      await invoke("setting_set", { key: "llama_exe_path", value: path });
-      showToast("llama-server path saved. Restart the engine to apply.", { variant: "success" });
-    }
-  });
+  document
+    .getElementById("btn-browse-exe")
+    ?.addEventListener("click", async () => {
+      const path = await pickFile("exe");
+      if (path) {
+        exePath.value = path;
+        await invoke("setting_set", { key: "llama_exe_path", value: path });
+        await refreshEnginePathHint();
+        showToast("llama-server path saved. Restart the engine to apply.", {
+          variant: "success",
+        });
+      }
+    });
 
-  document.getElementById("btn-import-chat")?.addEventListener("click", async () => {
-    await importModel("chat");
-  });
-  document.getElementById("btn-import-embed")?.addEventListener("click", async () => {
-    await importModel("embed");
-  });
+  document
+    .getElementById("btn-import-chat")
+    ?.addEventListener("click", async () => {
+      await importModel("chat");
+    });
+  document
+    .getElementById("btn-import-embed")
+    ?.addEventListener("click", async () => {
+      await importModel("embed");
+    });
 
   async function importModel(modelType) {
     const btn = document.getElementById(`btn-import-${modelType}`);
@@ -450,17 +544,24 @@ async function initLLMEngineSection() {
     }
   }
 
-  document.getElementById("btn-restart-chat")?.addEventListener("click", async () => {
-    await restartService("chat");
-  });
-  document.getElementById("btn-restart-embed")?.addEventListener("click", async () => {
-    await restartService("embed");
-  });
+  document
+    .getElementById("btn-restart-chat")
+    ?.addEventListener("click", async () => {
+      await restartService("chat");
+    });
+  document
+    .getElementById("btn-restart-embed")
+    ?.addEventListener("click", async () => {
+      await restartService("embed");
+    });
 
   async function restartService(service) {
     try {
-      await invoke("restart_engine", { service });
-      showToast(`${service} engine restarted.`, { variant: "success" });
+      const outcome = await invoke("restart_engine", { service });
+      showToast(
+        outcome && outcome.note ? outcome.note : `${service} engine restarted.`,
+        { variant: "success" },
+      );
       await updateEngineStatus();
     } catch (e) {
       showError(e, { title: `Failed to restart ${service}` });
@@ -470,17 +571,28 @@ async function initLLMEngineSection() {
 
   const persist = (key, value) => {
     invoke("setting_set", { key, value }).catch((e) =>
-      showError(e, { title: "Failed to save setting" })
+      showError(e, { title: "Failed to save setting" }),
     );
   };
 
-  chatSelect.addEventListener("change", () => persist("llama_chat_model", chatSelect.value));
-  embedSelect.addEventListener("change", () => persist("llama_embed_model", embedSelect.value));
-  exePath.addEventListener("change", () => persist("llama_exe_path", exePath.value));
+  chatSelect.addEventListener("change", () =>
+    persist("llama_chat_model", chatSelect.value),
+  );
+  embedSelect.addEventListener("change", () =>
+    persist("llama_embed_model", embedSelect.value),
+  );
+  exePath.addEventListener("change", async () => {
+    persist("llama_exe_path", exePath.value);
+    await refreshEnginePathHint();
+  });
   ngl.addEventListener("change", () => persist("llama_ngl", ngl.value));
-  ctxSize.addEventListener("change", () => persist("llama_ctx_size", ctxSize.value));
+  ctxSize.addEventListener("change", () =>
+    persist("llama_ctx_size", ctxSize.value),
+  );
 
+  await refreshEnginePathHint();
   await loadSettings();
+  await refreshEnginePathHint();
   await updateEngineStatus();
   // Re-probe status periodically so the card tracks engine state.
   setInterval(updateEngineStatus, 30000);
@@ -532,7 +644,12 @@ async function initAppearanceSection() {
     try {
       path = await dialog.open({
         multiple: false,
-        filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp"] }],
+        filters: [
+          {
+            name: "Image",
+            extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp"],
+          },
+        ],
       });
     } catch (e) {
       showError(e, { title: "File dialog failed" });
@@ -541,7 +658,10 @@ async function initAppearanceSection() {
     if (!path) return;
     try {
       await invoke("setting_set", { key: "background_image", value: path });
-      await invoke("setting_set", { key: "background_opacity", value: String(slider?.value || 40) });
+      await invoke("setting_set", {
+        key: "background_opacity",
+        value: String(slider?.value || 40),
+      });
       if (pathInput) pathInput.value = path;
       await load();
       await applyBackground();
@@ -568,7 +688,10 @@ async function initAppearanceSection() {
 
   slider?.addEventListener("change", async () => {
     try {
-      await invoke("setting_set", { key: "background_opacity", value: String(slider.value) });
+      await invoke("setting_set", {
+        key: "background_opacity",
+        value: String(slider.value),
+      });
       await applyBackground();
     } catch (e) {
       showError(e, { title: "Failed to save opacity" });
@@ -607,6 +730,6 @@ export async function applyBackground() {
     layer.classList.remove("active");
     scrim.classList.remove("active");
     document.body.classList.remove("has-bg-image");
-      document.documentElement.classList.remove("has-bg-image");
+    document.documentElement.classList.remove("has-bg-image");
   }
 }

@@ -222,10 +222,17 @@
 .log-line-warn { color: var(--color-warn); }
 .log-line-error { color: var(--color-error); }
 
-@media (max-width: 900px) {
-  .system-page {
-    padding: var(--space-24) var(--space-32);
-  }
+.engine-owner {
+  display: block;
+  margin-top: var(--space-4);
+  font-size: var(--font-size-12);
+  color: var(--color-warn);
+  min-height: 1em;
+}
+
+.engine-owner.warn {
+  color: var(--color-warn);
+}
 
   .runtime-table th[scope="row"] {
     width: 140px;

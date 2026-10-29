@@ -321,6 +321,9 @@ function renderInbox(items) {
 
 async function renderProposalCards(count) {
   if (!messagesEl || !count) return;
+  // Avoid stacking duplicate card groups when this is called more than once
+  // (e.g. after every chat turn that leaves pending proposals).
+  messagesEl.querySelectorAll(".ai-proposal-flow").forEach((el) => el.remove());
   try {
     const items = await invoke(
       "proposed_list",
@@ -623,10 +626,25 @@ async function sendChatMessage() {
       sourceEntryId: currentEntryId?.value || null,
       source: "sidebar",
     });
-    console.log("[CHAT] Conversation established:", currentConversationId);
-    recordDiagnostic("chat:conversation_ready", {
-      conversation_id: currentConversationId,
-    });
+    // Surface any proposals the chat turn created (memory, task, event, note...)
+    // inline. Chat-time tool calls do not emit ai_proposals_ready, so without
+    // this they would only be visible after manually opening the Inbox.
+    try {
+      const pending = await invoke(
+        "proposed_list",
+        { status: "pending", limit: 25 },
+        { silent: true },
+      );
+      if (pending && pending.length) {
+        await renderProposalCards(pending.length);
+        await loadInbox();
+        if (inboxEl && inboxEl.classList.contains("hidden")) {
+          inboxEl.classList.remove("hidden");
+        }
+      }
+    } catch (err) {
+      console.warn("[CHAT] proposal refresh failed", err);
+    }
   } catch (err) {
     console.error("AI Chat Error:", err);
     const bubble = currentAiBubble || createAiBubble();

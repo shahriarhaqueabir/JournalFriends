@@ -1063,12 +1063,17 @@
                       type="text"
                       id="llama-exe-path"
                       class="text-input-control"
-                      placeholder="C:\path\to\llama-server.exe"
+                      placeholder="Detecting bundled runtime…"
                     />
                     <hj-button variant="ghost" size="sm" id="btn-browse-exe"
                       >Browse…</hj-button
                     >
                   </div>
+                  <p class="field-help" id="llama-exe-hint">
+                    Arnold runs its bundled llama.cpp runtime automatically.
+                    Leave this empty unless you want a different
+                    llama-server.exe.
+                  </p>
                 </div>
                 <div class="field-row">
                   <div class="field">
@@ -1484,9 +1489,9 @@
           <!-- Step 1: Locate llama-server -->
           <section class="onboarding-pane" data-pane="1">
             <p>
-              Arnold bundles no model runtime. Point the app at your
-              <strong>llama-server.exe</strong> (from a llama.cpp build) and it
-              will manage the servers for you.
+              Arnold brings its own llama.cpp runtime and starts it for you.
+              Nothing to download — the executable below is detected from the
+              app's own <code>engines</code> folder.
             </p>
             <div class="onboarding-check-result">
               <label
@@ -1500,9 +1505,12 @@
                 id="onboard-exe-path"
                 class="text-input-control"
                 style="flex: 1 1 auto"
-                placeholder="C:\path\to\llama-server.exe"
+                placeholder="Detecting bundled runtime…"
               />
             </div>
+            <p class="onboarding-hint" id="onboard-exe-hint">
+              Checking for the bundled runtime…
+            </p>
             <div class="onboarding-actions">
               <hj-button variant="ghost" size="sm" id="btn-onboard-browse-exe"
                 >Browse…</hj-button

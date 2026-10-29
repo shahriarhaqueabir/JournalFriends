@@ -2,7 +2,9 @@
   <div class="system-page-inner">
     <header class="sys-header">
       <h1>System</h1>
-      <p>Runtime state, engines, analysis queue, database tools, and the app log.</p>
+      <p>
+        Runtime state, engines, analysis queue, database tools, and the app log.
+      </p>
     </header>
 
     <section class="sys-section">
@@ -15,7 +17,13 @@
             <td>
               <div class="path-cell">
                 <code class="path" id="rt-data-dir">—</code>
-                <button class="icon-btn copy-btn" data-copy-target="rt-data-dir" aria-label="Copy data directory path"><hj-icon name="copy" size="16" aria-hidden="true"></hj-icon></button>
+                <button
+                  class="icon-btn copy-btn"
+                  data-copy-target="rt-data-dir"
+                  aria-label="Copy data directory path"
+                >
+                  <hj-icon name="copy" size="16" aria-hidden="true"></hj-icon>
+                </button>
               </div>
             </td>
           </tr>
@@ -24,7 +32,13 @@
             <td>
               <div class="path-cell">
                 <code class="path" id="rt-db-path">—</code>
-                <button class="icon-btn copy-btn" data-copy-target="rt-db-path" aria-label="Copy database path"><hj-icon name="copy" size="16" aria-hidden="true"></hj-icon></button>
+                <button
+                  class="icon-btn copy-btn"
+                  data-copy-target="rt-db-path"
+                  aria-label="Copy database path"
+                >
+                  <hj-icon name="copy" size="16" aria-hidden="true"></hj-icon>
+                </button>
               </div>
             </td>
           </tr>
@@ -37,7 +51,13 @@
             <td>
               <div class="path-cell">
                 <code class="path" id="rt-log-path">—</code>
-                <button class="icon-btn copy-btn" data-copy-target="rt-log-path" aria-label="Copy log file path"><hj-icon name="copy" size="16" aria-hidden="true"></hj-icon></button>
+                <button
+                  class="icon-btn copy-btn"
+                  data-copy-target="rt-log-path"
+                  aria-label="Copy log file path"
+                >
+                  <hj-icon name="copy" size="16" aria-hidden="true"></hj-icon>
+                </button>
               </div>
             </td>
           </tr>
@@ -105,12 +125,39 @@
                 <span class="status-dot" data-engine-dot="chat"></span>
                 <span class="mono" data-engine-state="chat">—</span>
               </span>
+              <span class="engine-owner" data-engine-owner="chat"></span>
             </td>
             <td class="mono" data-engine-latency="chat">—</td>
             <td class="row-actions">
-              <hj-button variant="ghost" size="sm" data-engine-action="check" data-service="chat">Health</hj-button>
-              <hj-button variant="ghost" size="sm" data-engine-action="restart" data-service="chat">Restart</hj-button>
-              <hj-button variant="ghost" size="sm" data-engine-action="stop" data-service="chat">Stop</hj-button>
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="check"
+                data-service="chat"
+                >Health</hj-button
+              >
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="restart"
+                data-service="chat"
+                >Restart</hj-button
+              >
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="stop"
+                data-service="chat"
+                >Stop</hj-button
+              >
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="clear-port"
+                data-service="chat"
+                hidden
+                >Clear port</hj-button
+              >
             </td>
           </tr>
           <tr>
@@ -118,20 +165,49 @@
             <td>
               <span class="status-cell">
                 <span class="status-dot" data-engine-dot="embed"></span>
-                <span class="mono" data-engine-state="embed">—</span>
+                <span class="mono" data-engine-state="embed">-</span>
               </span>
+              <span class="engine-owner" data-engine-owner="embed"></span>
             </td>
             <td class="mono" data-engine-latency="embed">—</td>
             <td class="row-actions">
-              <hj-button variant="ghost" size="sm" data-engine-action="check" data-service="embed">Health</hj-button>
-              <hj-button variant="ghost" size="sm" data-engine-action="restart" data-service="embed">Restart</hj-button>
-              <hj-button variant="ghost" size="sm" data-engine-action="stop" data-service="embed">Stop</hj-button>
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="check"
+                data-service="embed"
+                >Health</hj-button
+              >
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="restart"
+                data-service="embed"
+                >Restart</hj-button
+              >
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="stop"
+                data-service="embed"
+                >Stop</hj-button
+              >
+              <hj-button
+                variant="ghost"
+                size="sm"
+                data-engine-action="clear-port"
+                data-service="embed"
+                hidden
+                >Clear port</hj-button
+              >
             </td>
           </tr>
         </tbody>
       </table>
       <div class="sys-actions">
-        <hj-button variant="primary" id="btn-engine-start">Start engines</hj-button>
+        <hj-button variant="primary" id="btn-engine-start"
+          >Start engines</hj-button
+        >
         <span id="engine-start-status" class="settings-status"></span>
       </div>
     </section>
@@ -140,7 +216,9 @@
       <h2>Analysis Queue</h2>
       <p>Journal entries waiting on — or failed in — the AI analysis worker.</p>
       <div class="sys-actions">
-        <hj-button variant="ghost" size="sm" id="btn-queue-refresh">Refresh</hj-button>
+        <hj-button variant="ghost" size="sm" id="btn-queue-refresh"
+          >Refresh</hj-button
+        >
         <span id="queue-count" class="queue-count"></span>
       </div>
       <div class="table-wrap">
@@ -166,20 +244,34 @@
 
     <section class="sys-section">
       <h2>Database</h2>
-      <p>Manual backup (SQLite Backup API, D-98) and quick access to the data directory.</p>
+      <p>
+        Manual backup (SQLite Backup API, D-98) and quick access to the data
+        directory.
+      </p>
       <div class="sys-actions">
         <hj-button variant="primary" id="btn-backup-now">Backup now</hj-button>
-        <hj-button variant="ghost" size="sm" id="btn-open-data-dir">Open data dir</hj-button>
+        <hj-button variant="ghost" size="sm" id="btn-open-data-dir"
+          >Open data dir</hj-button
+        >
         <span id="db-action-status" class="settings-status"></span>
       </div>
     </section>
 
     <section class="sys-section">
       <h2>SQL Runner</h2>
-      <p>Read-only queries against the unlocked vault (SELECT / WITH / PRAGMA / EXPLAIN — D-147).</p>
+      <p>
+        Read-only queries against the unlocked vault (SELECT / WITH / PRAGMA /
+        EXPLAIN — D-147).
+      </p>
       <div class="field">
         <label class="field-label" for="sys-sql-input">Statement</label>
-        <textarea id="sys-sql-input" class="textarea-control" rows="3" spellcheck="false" placeholder="SELECT status, COUNT(*) FROM tasks GROUP BY status;"></textarea>
+        <textarea
+          id="sys-sql-input"
+          class="textarea-control"
+          rows="3"
+          spellcheck="false"
+          placeholder="SELECT status, COUNT(*) FROM tasks GROUP BY status;"
+        ></textarea>
       </div>
       <div class="sys-actions">
         <hj-button variant="primary" id="btn-sql-run">Run</hj-button>
@@ -200,15 +292,27 @@
       <h2>Log Viewer</h2>
       <p>The verbose DEBUG log the app writes to disk.</p>
       <div class="log-toolbar">
-        <div id="log-tail-levels" class="segmented log-levels" role="group" aria-label="Minimum log level">
-          <button class="active" data-level="INFO" aria-pressed="true">Info</button>
+        <div
+          id="log-tail-levels"
+          class="segmented log-levels"
+          role="group"
+          aria-label="Minimum log level"
+        >
+          <button class="active" data-level="INFO" aria-pressed="true">
+            Info
+          </button>
           <button data-level="DEBUG" aria-pressed="false">Debug</button>
           <button data-level="WARN" aria-pressed="false">Warn</button>
           <button data-level="ERROR" aria-pressed="false">Error</button>
         </div>
-        <hj-button variant="ghost" size="sm" id="btn-open-log">Open log file</hj-button>
+        <hj-button variant="ghost" size="sm" id="btn-open-log"
+          >Open log file</hj-button
+        >
       </div>
-      <pre id="log-tail" class="log-view"><span class="log-tail-placeholder">Log file not available yet.</span></pre>
+      <pre
+        id="log-tail"
+        class="log-view"
+      ><span class="log-tail-placeholder">Log file not available yet.</span></pre>
     </section>
   </div>
 </div>
