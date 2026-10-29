@@ -17,10 +17,12 @@ pub fn get_analysis_system_prompt() -> &'static str {
     }
 
     - \"triplets\": semantic relationships for a Knowledge Graph.
-    - \"facts\": durable knowledge about the user (e.g., \"likes black coffee\").
-    - \"events\": scheduled items (e.g., \"Meeting with Sarah tomorrow at 10am\"). Use ISO8601 for start_at.
-    - \"notes\": significant information that isn't a task or event (e.g., \"Project ideas discussed today\").
+    - \"facts\": durable knowledge about the USER (preferences, habits, constraints, person info, long-term goals). NOT one-time actions, NOT scheduled events, NOT to-do items. E.g. \"likes black coffee\", \"allergic to peanuts\", \"goal: learn Rust\". A fact must be something true about the user that stays true over time.
+    - \"tasks\": actionable items the user needs to DO (e.g., \"Prepare for German B2 exam\", \"Get dog insurance\"). Include due_date only when a date is stated.
+    - \"events\": scheduled items with a specific date/time on a calendar (e.g., \"Meeting with Sarah tomorrow at 10am\", \"Lawyer visit today at 4pm\"). Use ISO8601 for start_at. Only include an event when a date/time is stated; never invent a time or date.
+    - \"notes\": significant reference information that is neither a task nor an event (e.g., \"Project ideas discussed today\", \"First day of journaling journey\").
     - \"tasks\": Each object's \"title\" must be the task text WITHOUT embedded due-date text (write \"Grocery run\", not \"Grocery run (due: 24th)\"). Put dates only in the \"due_date\" field, converted to YYYY-MM-DD.
+    - Do NOT duplicate the same subject across types. If \"prepare for German B2 exam\" is a task, do not also make it a fact or a note. If \"lawyer visit at 4pm\" is an event, do not also make it a fact. Each extracted item must be a distinct facet.
 
     Constraints:
     - Output MUST be a single valid JSON object.
