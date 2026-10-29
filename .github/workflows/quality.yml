@@ -13,11 +13,24 @@ jobs:
     defaults:
       run:
         working-directory: src-tauri
+    env:
+      # rusqlite's bundled-sqlcipher feature needs OpenSSL for SQLCipher's
+      # crypto; the Windows runner does not ship it by default.
+      OPENSSL_DIR: C:\Program Files\OpenSSL-Win64
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - name: Install OpenSSL
+        shell: pwsh
+        run: |
+          choco install openssl -y --no-progress
+          if (-not (Test-Path "$env:OPENSSL_DIR\lib\libcrypto.lib")) {
+            # choco sometimes installs under a versioned folder; fall back to search.
+            $found = Get-ChildItem "C:\Program Files\OpenSSL*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { "OPENSSL_DIR=$($found.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append }
+          }
       - name: Check formatting
         run: cargo fmt --check
       - name: Check build
@@ -39,16 +52,21 @@ jobs:
       - name: Run Node harnesses
         shell: pwsh
         run: |
-          Get-ChildItem ..\tools\js-checks -Filter *.test.mjs | ForEach-Object { node $_.FullName }
+          Get-ChildItem tools\js-checks -Filter *.test.mjs | ForEach-Object { node $_.FullName }
 
   security:
     runs-on: windows-latest
     defaults:
       run:
         working-directory: src-tauri
+    env:
+      OPENSSL_DIR: C:\Program Files\OpenSSL-Win64
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install OpenSSL
+        shell: pwsh
+        run: choco install openssl -y --no-progress
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Audit dependencies
