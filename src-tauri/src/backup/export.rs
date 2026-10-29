@@ -141,8 +141,8 @@ pub fn export_zip(conn: &Connection, output_path: &Path) -> Result<PathBuf, AppE
 
     let file = std::fs::File::create(output_path)?;
     let mut zip = zip::ZipWriter::new(file);
-    let options: zip::write::FileOptions<'_, ()> =
-        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
 
     zip.start_file("arnold_export.json", options)
         .map_err(|e| AppError::Io(e.to_string()))?;

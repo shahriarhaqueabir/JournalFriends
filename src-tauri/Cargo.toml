@@ -36,7 +36,7 @@ uuid                      = { version = "1", features = ["v4"] }
 tracing                   = "0.1"
 tracing-subscriber        = { version = "0.3", features = ["env-filter"] }
 regex                     = "1"
-zip                       = "2"
+zip                       = "9"
 dirs                      = "5"
 sysinfo                   = "0.30"
 fxhash                    = "0.2"
