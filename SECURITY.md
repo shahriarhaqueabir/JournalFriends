@@ -48,3 +48,10 @@ Arnold is offline-first by construction:
   MIT-licensed). Its license is shipped alongside it in `engines/`.
 - `cargo audit` is run in CI; any advisory that cannot be resolved without a
   breaking change is documented in the changelog.
+- Remaining `cargo audit` warnings (all non-vulnerability, allowed): `fxhash`,
+  `proc-macro-error`, `unic-*`, `zbus_names`/`zvariant*` (unmaintained
+  transitive deps) and `chacha20` (yanked). `glib`'s unsoundness advisory
+  (RUSTSEC-2024-0429) applies only to the Linux/GTK code path and is not
+  reachable on Windows, where Tauri uses WebView2. `tokio`'s I/O-safety
+  advisory (RUSTSEC-2026-0386) does not affect this codebase (no `AsyncFd`
+  usage).
