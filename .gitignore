@@ -8,7 +8,7 @@
 /src-tauri/target_temp/
 /src-tauri/gen/
 **/*.rs.bk
-build.rs
+
 
 
 # Binary Locks (Keep root Cargo.lock for deterministic builds)

@@ -237,7 +237,7 @@ pub fn duplicate_port_reason(role: PortRole, owner: &PortOwner) -> String {
 /// Terminate one pid: sysinfo (TerminateProcess) first, `taskkill /T /F` as a
 /// fallback for processes sysinfo cannot signal.
 pub fn kill_pid(pid: u32) -> Result<(), String> {
-    let mut sys = System::new_all();
+    let sys = System::new_all();
     if let Some(proc) = sys.process(Pid::from_u32(pid)) {
         if proc.kill() {
             return Ok(());
