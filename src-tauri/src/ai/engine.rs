@@ -130,6 +130,14 @@ impl LlamaEngine {
     }
 
     pub async fn start_chat(&self) -> Result<(), String> {
+        // Compute args first (brief probe lock) so we never hold chat_child and
+        // chat_probe simultaneously — that ordering would deadlock against
+        // chat_info, which takes them in the opposite order.
+        let args = {
+            let probe = self.chat_probe.lock().await;
+            chat_args(&self.config, probe.as_ref())
+        };
+
         let mut child = self.chat_child.lock().await;
         if child.is_some() {
             return Ok(());
@@ -141,10 +149,6 @@ impl LlamaEngine {
             ));
         }
 
-        let args = {
-            let probe = self.chat_probe.lock().await;
-            chat_args(&self.config, probe.as_ref())
-        };
         let mut proc = Command::new(&self.config.exe_path)
             .args(args)
             .stdout(std::process::Stdio::piped())
@@ -183,10 +187,10 @@ impl LlamaEngine {
                 "llama-embed.log",
             )
         };
-        probe.lock().await.reset();
         if let Some(handle) = slot.lock().await.take() {
             handle.abort();
         }
+        probe.lock().await.reset();
         if let Some(out) = stdout {
             engine_log::spawn_output_drain(out);
         }
@@ -202,6 +206,11 @@ impl LlamaEngine {
     }
 
     pub async fn start_embed(&self) -> Result<(), EmbedStartError> {
+        let args = {
+            let probe = self.embed_probe.lock().await;
+            embed_args(&self.config, probe.as_ref())
+        };
+
         let mut child = self.embed_child.lock().await;
         if child.is_some() {
             return Ok(());
@@ -210,10 +219,6 @@ impl LlamaEngine {
             return Err(EmbedStartError::PortInUse(self.config.embed_port));
         }
 
-        let args = {
-            let probe = self.embed_probe.lock().await;
-            embed_args(&self.config, probe.as_ref())
-        };
         let mut proc = Command::new(&self.config.exe_path)
             .args(args)
             .stdout(std::process::Stdio::piped())
@@ -338,8 +343,12 @@ impl LlamaEngine {
 
     /// Engine-neutral runtime state for the chat server.
     pub async fn chat_info(&self) -> EngineRuntimeInfo {
+        // Read status first (releases child lock) before locking the probe,
+        // so we never hold chat_probe and chat_child simultaneously in the
+        // opposite order from start_chat.
+        let running = matches!(self.chat_status().await, EngineStatus::Running);
         let mut probe = self.chat_probe.lock().await;
-        if !matches!(self.chat_status().await, EngineStatus::Running) {
+        if !running {
             probe.reset();
         }
         probe.snapshot()
@@ -347,8 +356,9 @@ impl LlamaEngine {
 
     /// Engine-neutral runtime state for the embed server.
     pub async fn embed_info(&self) -> EngineRuntimeInfo {
+        let running = matches!(self.embed_status().await, EngineStatus::Running);
         let mut probe = self.embed_probe.lock().await;
-        if !matches!(self.embed_status().await, EngineStatus::Running) {
+        if !running {
             probe.reset();
         }
         probe.snapshot()
