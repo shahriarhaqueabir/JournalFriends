@@ -96,9 +96,12 @@ lines — so "no offload lines in the log" must never be treated as CPU evidence
 
 `ai/engine.rs`:
 
-- `EngineConfig.ngl: u32` → `gpu_layers: String`.
-- New pure `normalize_gpu_layers(raw: &str) -> String`: trims/lowercases; accepts
-  `auto`, `all`, or an integer `0..=400`; anything else (empty, `""`, `"abc"`,
+- `EngineConfig.ngl: u32` → `gpu_layers: String` (the raw setting; `engine.rs` never
+  interprets it) plus `log_dir: PathBuf` for `<data>/logs/llama-<service>.log`.
+- New pure `normalize_gpu_layers(raw: &str) -> String` in
+  **`ai/probe/llama_cpp.rs`** (not `engine.rs` — the value grammar is llama.cpp's, and
+  keeping it in the probe is what makes the engine boundary real): trims/lowercases;
+  accepts `auto`, `all`, or an integer `0..=400`; anything else (empty, `""`, `"abc"`,
   `"999"`) returns `auto` and emits `tracing::warn!` — same choke-point pattern as
   `db::tasks::normalize_priority`.
 - `chat_args()` and `start_embed()` emit `-ngl <normalized>` plus whatever
@@ -154,6 +157,8 @@ pub trait EngineProbe: Send + Sync {
     fn list_devices(&self, exe: &Path) -> Result<Vec<DeviceInfo>, ProbeError>;
     /// Consume one drained log line; tolerant, never fails.
     fn feed(&mut self, line: &str);
+    /// Clear parsed state before a fresh start (restart / engine swap).
+    fn reset(&mut self);
     /// Current best-known state.
     fn snapshot(&self) -> EngineRuntimeInfo;
 }
@@ -216,8 +221,10 @@ runtime needs no UI change.
 - Args: none (so no camelCase concerns). Return and event payloads are snake_case
   per D-148; `wire_tests` gains a serde-shape assertion.
 - New `AppEvent::EngineRuntimeStatus { chat: EngineRuntimeInfo, embed: EngineRuntimeInfo }`
-  emitted after provisioning/restart completes (and on the first parse that resolves
-  `unknown` → known), so the UI updates without polling.
+  emitted on provisioning, direct restart, and stop lifecycle changes. A start-time
+  snapshot may still be `unknown` while model loading/log parsing finishes; the
+  frontend briefly polls `engine_runtime_info` after `LlamaEngineStarted` until chat
+  status becomes authoritative, so the CPU-fallback toast cannot be lost.
 - Existing `LlamaEngineStarted`/`LlamaEngineFailed` are unchanged.
 
 ### 4.5 Truth in the UI
@@ -232,14 +239,15 @@ runtime needs no UI change.
   explains the values; below it an inline status line with the same wording as the
   System row.
 - **Toast on provision** (`notifications.js`): only when `backend != gpu` —
-  `Running on CPU (no CUDA device detected) — chat will be slow.` or
-  `Partial GPU offload: 18/33 layers in VRAM (model larger than free VRAM).`
+  `Running on CPU (GPU acceleration is not active) — chat will be slow.` or
+  `Partial GPU offload: 18/33 layers on GPU; remaining layers on CPU.`
   Silent when fully on GPU (no new noise for the working case).
 
 ### 4.6 Requirements disclosure
 
 One shared source of truth: `src/js/requirements.js` exporting
-`requirementRows({ gpu, runtime })` so onboarding and System render identical content.
+`requirementRows({ engineLabel, devices, msvcRuntime, chatModel, embedModel })` so
+onboarding and System render identical content from `engine_requirements`.
 
 | Requirement                                                                                 | Bundled?             | Display                                                               |
 | ------------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------- |
@@ -348,7 +356,7 @@ provision_model / restart_engine
 - **`LoadLibrary` probing** can produce false "missing" if the DLL is app-local only;
   check both the process search path and `engines/` before declaring it missing.
 - **Probe trait is speculative for one implementation.** Accepted deliberately: the
-  trait is five methods with a single impl today, which is cheap insurance against the
+  trait is six methods with a single impl today, which is cheap insurance against the
   engine swap the project already expects. It must not grow beyond what the UI needs.
 
 ## 9. Out of scope
@@ -361,9 +369,11 @@ proposal/confirmation flow.
 ## 10. Files touched (estimate)
 
 - `src-tauri/src/ai/engine.rs` — `gpu_layers`, probe wiring, reader spawn, `chat_info`/`embed_info`
+- `src-tauri/src/ai/mod.rs` — probe and engine-log module declarations
 - `src-tauri/src/ai/engine_log.rs` (new) — reader, ring buffer, rotation, ANSI strip
 - `src-tauri/src/ai/probe/mod.rs` (new) — `EngineProbe` trait, `DeviceInfo`, `ProbeError`
 - `src-tauri/src/ai/probe/llama_cpp.rs` (new) — flags, `--list-devices` parser, log parser
+- `src-tauri/src/runtime_env.rs` (new) — MSVC runtime detection
 - `src-tauri/src/events.rs` — `EngineRuntimeStatus`
 - `src-tauri/src/lib.rs` — settings reads, `engine_runtime_info`, `wire_tests`, spawn wiring
 - `src-tauri/src/preflight.rs` — `gpu_offload`, `msvc_runtime`
@@ -371,8 +381,8 @@ proposal/confirmation flow.
 - `AGENTS.md` — D-97 migration-convention correction (done, §11)
 - `src-tauri/migrations/018_gpu_layers_auto.sql` (new)
 - `src/index.html` — `#llama-ngl` → text + help + inline status; requirements table (onboarding pane 0)
-- `src/js/tabs/settings.js`, `src/js/tabs/system.js`, `src/js/onboarding.js`, `src/js/notifications.js`
-- `src/js/requirements.js` (new), `src/styles/surfaces/system.css`
+- `src/js/tabs/settings.js`, `src/js/tabs/system.js`, `src/js/onboarding.js`, `src/js/app.js`
+- `src/js/requirements.js` (new), `src/js/engine-status.js` (new), `src/styles/surfaces/system.css`
 - `tools/js-checks/requirements.test.mjs` (new), `tools/js-checks/engine-status.test.mjs` (new)
 
 ## 11. Docs fix shipped with this change
