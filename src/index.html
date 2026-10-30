@@ -1427,12 +1427,7 @@
         </div>
         <div class="onboarding-steps" id="onboarding-steps">
           <div class="onboarding-step active" data-step="0">Welcome</div>
-          <div class="onboarding-step" data-step="1">Engine</div>
-          <div class="onboarding-step" data-step="2">Chat Model</div>
-          <div class="onboarding-step" data-step="3">Embed Model</div>
-          <div class="onboarding-step" data-step="4">Persona</div>
-          <div class="onboarding-step" data-step="5">System Check</div>
-          <div class="onboarding-step" data-step="6">Done</div>
+          <div class="onboarding-step" data-step="1">Done</div>
         </div>
         <div class="onboarding-body">
           <!-- Step 0: Welcome -->
@@ -1441,39 +1436,13 @@
               <p class="field-help">Loading requirements…</p>
             </div>
             <p>
-              Your private, offline journal and task manager with a local AI
-              partner. Everything stays on this machine.
+              Your private, offline journal and task manager. Everything stays on
+              this machine — no accounts, no cloud, no network.
             </p>
             <p>
-              <strong>Bring your own models — nothing is downloaded.</strong>
-              Arnold needs a local <strong>llama-server</strong> runtime and two
-              GGUF files you pick yourself:
-            </p>
-            <ul class="onboarding-features">
-              <li>
-                <hj-icon name="server" size="16" aria-hidden="true"></hj-icon>
-                <strong>llama-server.exe</strong> — bundled in the Windows
-                release; from source, stage your own llama.cpp build
-              </li>
-              <li>
-                <hj-icon
-                  name="message-circle"
-                  size="16"
-                  aria-hidden="true"
-                ></hj-icon>
-                <strong>A chat GGUF</strong> — any instruct-tuned model works;
-                Qwythos-9B is what the prompts and tools are tuned against
-              </li>
-              <li>
-                <hj-icon name="search" size="16" aria-hidden="true"></hj-icon>
-                <strong>An embedding GGUF</strong> — used only to index and
-                search journal entries (nomic-embed recommended)
-              </li>
-            </ul>
-            <p>
-              No account, no cloud, no network. The AI can never write to your
-              data on its own — every change becomes a proposal you accept in
-              the Review Inbox.
+              Write journal entries, manage tasks, and track your mood. An
+              optional AI assistant can analyze your entries and extract
+              actionable tasks — enable it anytime in Settings.
             </p>
             <ul class="onboarding-features">
               <li>
@@ -1498,113 +1467,12 @@
               </li>
             </ul>
           </section>
-          <!-- Step 1: Locate llama-server -->
+          <!-- Step 1: Finish -->
           <section class="onboarding-pane" data-pane="1">
-            <p>
-              Arnold brings its own llama.cpp runtime and starts it for you.
-              Nothing to download — the executable below is detected from the
-              app's own <code>engines</code> folder.
-            </p>
-            <div class="onboarding-check-result">
-              <label
-                for="onboard-exe-path"
-                class="onboarding-inline-label"
-                style="flex: 0 0 auto"
-                >Executable</label
-              >
-              <input
-                type="text"
-                id="onboard-exe-path"
-                class="text-input-control"
-                style="flex: 1 1 auto"
-                placeholder="Detecting bundled runtime…"
-              />
-            </div>
-            <p class="onboarding-hint" id="onboard-exe-hint">
-              Checking for the bundled runtime…
-            </p>
-            <div class="onboarding-actions">
-              <hj-button variant="ghost" size="sm" id="btn-onboard-browse-exe"
-                >Browse…</hj-button
-              >
-              <hj-button variant="primary" id="btn-onboard-continue-engine"
-                >Continue</hj-button
-              >
-            </div>
-          </section>
-          <!-- Step 2: Import chat model -->
-          <section class="onboarding-pane" data-pane="2">
-            <p>
-              Select your local chat GGUF. Recommended:
-              <code>Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M</code>, but any
-              instruct-tuned GGUF works. It is copied into
-              <code>models/chat/</code> — nothing is downloaded. Embedding
-              models are rejected here.
-            </p>
-            <div
-              class="onboarding-check-result"
-              id="onboarding-import-chat-result"
-            >
-              <span class="onboarding-spinner"></span> Waiting…
-            </div>
-            <div class="onboarding-actions">
-              <hj-button variant="primary" id="btn-onboard-import-chat"
-                >Select Chat GGUF</hj-button
-              >
-            </div>
-          </section>
-          <!-- Step 3: Import embed model -->
-          <section class="onboarding-pane" data-pane="3">
-            <p>
-              Select your local <strong>embedding</strong> GGUF. Recommended:
-              <code>nomic-embed-text-v2-moe</code>. It is copied into
-              <code>models/embed/</code> and is used only for semantic journal
-              search — nothing is downloaded.
-            </p>
-            <div
-              class="onboarding-check-result"
-              id="onboarding-import-embed-result"
-            >
-              <span class="onboarding-spinner"></span> Waiting…
-            </div>
-            <div class="onboarding-actions">
-              <hj-button variant="primary" id="btn-onboard-import-embed"
-                >Select Embed GGUF</hj-button
-              >
-            </div>
-          </section>
-          <!-- Step 4: Persona -->
-          <section class="onboarding-pane" data-pane="4">
-            <p>
-              Tell me about yourself so your AI has grounded context from day
-              one. Answer any or all — everything stays on this machine.
-            </p>
-            <div id="onboarding-persona-form" class="persona-form"></div>
-            <div class="onboarding-actions">
-              <button id="btn-onboarding-skip-persona" class="btn-link-sm">
-                Skip for now
-              </button>
-            </div>
-          </section>
-          <!-- Step 5: System check -->
-          <section class="onboarding-pane" data-pane="5">
-            <p>Running a quick system check before you begin.</p>
-            <div id="onboarding-check-list" class="onboarding-check-list">
-              <div class="onboarding-check-item">
-                <span class="onboarding-spinner"></span> Running checks…
-              </div>
-            </div>
-            <button id="btn-rerun-checks" class="btn-ghost-sm hidden">
-              Run again
-            </button>
-          </section>
-          <!-- Step 6: Finish -->
-          <section class="onboarding-pane" data-pane="6">
-            <p>You're all set. Your data lives at:</p>
-            <code id="onboarding-data-dir" class="onboarding-data-dir"></code>
+            <p>You're all set. Your data is stored locally on this machine.</p>
             <p class="onboarding-finish-note">
-              The AI can start reading your journal as soon as you write your
-              first entry.
+              Enable AI features anytime in Settings to get journal analysis,
+              task extraction, and a chat assistant.
             </p>
           </section>
         </div>
