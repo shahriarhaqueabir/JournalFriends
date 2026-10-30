@@ -90,7 +90,7 @@ pub trait EngineProbe: Send + Sync {
     fn snapshot(&self) -> EngineRuntimeInfo;
 }
 
-pub use llama_cpp::LlamaCppProbe;
+pub use llama_cpp::{strip_ansi, LlamaCppProbe};
 
 /// The engine the app ships with today.
 pub fn default_probe() -> Box<dyn EngineProbe> {
