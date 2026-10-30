@@ -62,13 +62,14 @@ lines — so "no offload lines in the log" must never be treated as CPU evidence
 
 ## 2. Decisions (from brainstorming)
 
-| #   | Question                         | Decision                                                                                                                                                                 |
-| --- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Q1  | No-GPU behaviour                 | **Warn, keep running on CPU.** Never block; always tell the truth.                                                                                                       |
-| Q2  | GPU layers control               | **Keep the field, default `auto`, explain it.** Text input accepting `auto` / `all` / `0` / `N`; help text "auto = use as much GPU as fits. 0 = CPU only."               |
-| Q3  | Where status + requirements live | **System → AI Engines + onboarding step 0 + Settings → LLM Engine inline status.**                                                                                       |
-| Q4  | MSVC runtime                     | **Detect and report only.** No bundling, no packaging change.                                                                                                            |
-| Q5  | Default value correction         | Default is **`auto`** (llama.cpp's own default, fit-aware), _not_ `all` — `all` is still a hard pin that fails on oversized models. `all` remains accepted in the field. |
+| #   | Question                         | Decision                                                                                                                                                                                                                                                                                              |
+| --- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | No-GPU behaviour                 | **Warn, keep running on CPU.** Never block; always tell the truth.                                                                                                                                                                                                                                    |
+| Q2  | GPU layers control               | **Keep the field, default `auto`, explain it.** Text input accepting `auto` / `all` / `0` / `N`; help text "auto = use as much GPU as fits. 0 = CPU only."                                                                                                                                            |
+| Q3  | Where status + requirements live | **System → AI Engines + onboarding step 0 + Settings → LLM Engine inline status.**                                                                                                                                                                                                                    |
+| Q4  | MSVC runtime                     | **Detect and report only.** No bundling, no packaging change.                                                                                                                                                                                                                                         |
+| Q5  | Default value correction         | Default is **`auto`** (llama.cpp's own default, fit-aware), _not_ `all` — `all` is still a hard pin that fails on oversized models. `all` remains accepted in the field.                                                                                                                              |
+| Q6  | Future engine swaps              | The engine will be replaced eventually (llama.cpp today, something newer later). GPU detection, spawn args, and the requirements rows sit behind an **`EngineProbe` abstraction**; only one module knows llama.cpp's log format and CLI flags. Wire contract, UI, and preflight never name llama.cpp. |
 
 ## 3. Goals / Non-goals
 
@@ -79,6 +80,7 @@ lines — so "no offload lines in the log" must never be treated as CPU evidence
 - The requirements list (bundled vs. external vs. user-supplied) is visible during onboarding and afterwards.
 - Remove the piped-stderr hang risk while gaining the diagnostics.
 - No behaviour change on machines where everything already works.
+- **Engine-portable**: everything engine-specific (flags, log format, device listing) is confined to one probe module, so swapping llama.cpp for a newer runtime later is an added module, not a rewrite of the UI, wire contract, or preflight.
 
 **Non-goals**
 
@@ -99,8 +101,10 @@ lines — so "no offload lines in the log" must never be treated as CPU evidence
   `auto`, `all`, or an integer `0..=400`; anything else (empty, `""`, `"abc"`,
   `"999"`) returns `auto` and emits `tracing::warn!` — same choke-point pattern as
   `db::tasks::normalize_priority`.
-- `chat_args()` and `start_embed()` emit `-ngl <normalized>` (still explicit, so a
-  swapped-in older binary cannot regress to CPU — same rationale as explicit `--jinja`).
+- `chat_args()` and `start_embed()` emit `-ngl <normalized>` plus whatever
+  `EngineProbe::gpu_args()` returns (today: `-ngl`, `-lv 4`) — still explicit, so a
+  swapped-in older binary cannot regress to CPU, and so the engine-specific flags live
+  in the probe rather than in `engine.rs`.
 - `--fit` is left at its default (`on`) and is **not** passed; nothing else changes.
 
 Settings/read paths: `lib.rs:320` and `lib.rs:2346` read `llama_ngl` as a `String`
@@ -115,10 +119,8 @@ UPDATE app_settings SET value = 'auto' WHERE key = 'llama_ngl' AND value = '99';
 ```
 
 The runner wraps each file in a rusqlite transaction and strips an outer
-`BEGIN;`/`COMMIT;` pair, so the file may follow the 016/017 style. (Note: the
-"Conventions" section of `AGENTS.md` still claims migrations must contain
-BEGIN/COMMIT while the "File Structure" section and `migrations.rs` say the runner
-supplies it — the code is authoritative; flagged for a docs fix, not part of this work.)
+`BEGIN;`/`COMMIT;` pair, so the file may follow the 016/017 style. (`AGENTS.md` was
+corrected on this point in the same change — see §11.)
 
 ### 4.2 Stderr drain (fixes the hang, supplies the diagnostics)
 
@@ -129,13 +131,43 @@ New `ai/engine_log.rs`:
   200 lines, appends to `<data>/logs/llama-<label>.log`, and feeds each line to the parser.
 - Log rotation: before appending, if the file exceeds 2 MiB, rename to `.1` (single
   generation) and start fresh. Failures are logged via `tracing` and never fatal.
-- Both servers spawn with `-lv 4` added to their args and `Stdio::piped()` for
-  stderr/stdout, with both streams drained (stdout too — it is currently piped and unread).
+- Both servers spawn with `probe.gpu_args(gpu_layers)` (llama.cpp: `-ngl <value> -lv 4`)
+  and `Stdio::piped()` for stderr/stdout, with both streams drained (stdout too — it is
+  currently piped and unread). The log verbosity flag is the probe's business, not
+  `engine.rs`'s.
 - `stop_chat`/`stop_embed` abort the reader tasks after `kill()`/`wait()`.
 
-### 4.3 Parsing contract
+### 4.3 Engine abstraction + parsing contract
 
-`ai/engine_info.rs`, all pure and unit-tested:
+The engine will be replaced eventually, so nothing outside one module may know
+llama.cpp's CLI flags or log format.
+
+**Trait boundary** (`ai/probe/mod.rs`):
+
+```rust
+pub trait EngineProbe: Send + Sync {
+    /// Human name shown in Requirements ("llama.cpp", later e.g. "mistral.rs").
+    fn engine_label(&self) -> &'static str;
+    /// Extra spawn args this engine needs for GPU + diagnostics (llama.cpp: -ngl, -lv 4).
+    fn gpu_args(&self, gpu_layers: &str) -> Vec<OsString>;
+    /// Enumerate accelerators without loading a model (llama.cpp: --list-devices).
+    fn list_devices(&self, exe: &Path) -> Result<Vec<DeviceInfo>, ProbeError>;
+    /// Consume one drained log line; tolerant, never fails.
+    fn feed(&mut self, line: &str);
+    /// Current best-known state.
+    fn snapshot(&self) -> EngineRuntimeInfo;
+}
+```
+
+`DeviceInfo { id, name, total_mib, free_mib }`. `EngineRuntimeInfo` (§4.4) is the
+**stable wire contract** — a future engine implements the same trait and the UI,
+preflight, events, and tests keep working unchanged.
+
+Each service holds its probe as `Arc<Mutex<Box<dyn EngineProbe>>>`: the stderr drain
+task takes the lock to `feed()` a line, and the `engine_runtime_info` command takes it
+to `snapshot()`. Lock scope is one line/snapshot — no I/O while held.
+
+**llama.cpp implementation** (`ai/probe/llama_cpp.rs`), pure and unit-tested:
 
 | Field                  | Source line (regex, ANSI-stripped)               |
 | ---------------------- | ------------------------------------------------ |
@@ -145,22 +177,24 @@ New `ai/engine_log.rs`:
 | model buffer           | `(\w+) model buffer size =\s+([\d.]+) MiB`       |
 | KV buffer              | `(\w+) KV buffer size =\s+([\d.]+) MiB`          |
 
-Derived state:
+Derived state (`Backend`):
 
-- `Backend::Gpu` — device line present and `offloaded n/n` with `n > 0`.
-- `Backend::Partial` — device line present and `0 < n < total`.
-- `Backend::Cpu` — no device line, or `offloaded 0/n`.
-- `Backend::Unknown` — engine not started yet / lines not seen.
+- `Gpu` — device line present and `offloaded n/n` with `n > 0`.
+- `Partial` — device line present and `0 < n < total`.
+- `Cpu` — no device line, or `offloaded 0/n`.
+- `Unknown` — engine not started yet / lines not seen.
 
-Parsers are incremental (`EngineInfoAccumulator::feed(&str)`), so partial logs still
-yield useful state. ANSI stripping is mandatory: `--log-file` output contains colour
-escapes even though a redirected pipe does not.
+Parsing is incremental (`feed(&str)`), so partial logs still yield useful state. ANSI
+stripping is mandatory: `--log-file` output contains colour escapes even though a
+redirected pipe does not. A build that renames or drops these lines degrades the row
+to `Unknown` — it must never change engine behaviour or fail a start.
 
 ### 4.4 State + wire contract (D-148)
 
 ```rust
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct EngineRuntimeInfo {
+    pub engine: String,           // probe label, e.g. "llama.cpp" (never hardcoded in the UI)
     pub backend: String,          // "gpu" | "partial" | "cpu" | "unknown"
     pub device: Option<String>,   // "CUDA0"
     pub device_name: Option<String>, // "NVIDIA GeForce RTX 3060"
@@ -172,6 +206,10 @@ pub struct EngineRuntimeInfo {
     pub vram_free_mib: Option<u64>,
 }
 ```
+
+`engine` is what makes the contract engine-neutral: the Requirements row and the
+Settings status read `engine` instead of the literal string "llama.cpp", so a future
+runtime needs no UI change.
 
 - Stored per service on `LlamaEngine` (`chat_info()`, `embed_info()`), surfaced by a
   new command `engine_runtime_info` returning `{ chat: EngineRuntimeInfo, embed: EngineRuntimeInfo }`.
@@ -203,14 +241,18 @@ pub struct EngineRuntimeInfo {
 One shared source of truth: `src/js/requirements.js` exporting
 `requirementRows({ gpu, runtime })` so onboarding and System render identical content.
 
-| Requirement                                | Bundled?             | Display                                                               |
-| ------------------------------------------ | -------------------- | --------------------------------------------------------------------- |
-| llama.cpp engine + CUDA libraries          | ✅ bundled           | `Included`                                                            |
-| WebView2 runtime                           | ✅ bundled (offline) | `Included`                                                            |
-| NVIDIA driver                              | ❌ external          | `Detected — RTX 3060` / `Not detected — GPU disabled, running on CPU` |
-| Microsoft Visual C++ 2015–2022 x64 runtime | ❌ external          | `Detected` / `Missing — engine cannot start` + download link          |
-| Chat model (GGUF, instruct-tuned)          | ❌ you supply        | `Imported: <filename>` / `Not imported`                               |
-| Embedding model (GGUF)                     | ❌ you supply        | `Imported: <filename>` / `Not imported (semantic search disabled)`    |
+| Requirement                                                                                 | Bundled?             | Display                                                               |
+| ------------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------- |
+| Engine + accelerator libraries (`probe.engine_label()`, today "llama.cpp + CUDA libraries") | ✅ bundled           | `Included`                                                            |
+| WebView2 runtime                                                                            | ✅ bundled (offline) | `Included`                                                            |
+| GPU driver (NVIDIA today)                                                                   | ❌ external          | `Detected — RTX 3060` / `Not detected — GPU disabled, running on CPU` |
+| Microsoft Visual C++ 2015–2022 x64 runtime                                                  | ❌ external          | `Detected` / `Missing — engine cannot start` + download link          |
+| Chat model (GGUF, instruct-tuned)                                                           | ❌ you supply        | `Imported: <filename>` / `Not imported`                               |
+| Embedding model (GGUF)                                                                      | ❌ you supply        | `Imported: <filename>` / `Not imported (semantic search disabled)`    |
+
+The engine row label comes from `EngineRuntimeInfo.engine`, so swapping runtimes renames
+the row without touching the table markup. A future engine with a different packaging
+model (e.g. no CUDA DLLs) replaces that row's `bundled` flag via the probe.
 
 - **Onboarding step 0** gains the table above the existing welcome copy, rendered from
   the same module; no new wizard step (Q3).
@@ -221,11 +263,13 @@ One shared source of truth: `src/js/requirements.js` exporting
 Two new checks in `preflight_run` (`preflight.rs`), following check 3's shape
 (`PreflightCheck { id, label, status, message, actionable }`):
 
-1. **`gpu_offload`** — run `llama-server.exe --list-devices` (fast, no model load;
-   ~200 ms), parse `CUDA0: <name> (<total> MiB, <free> MiB free)`. Pass with the device
-   name; Warn (`actionable: true`) with "No CUDA device — Arnold will run on CPU" when
-   none. If the binary cannot be executed at all, Fail with the spawn error (this is
-   also where a missing MSVC runtime surfaces first).
+1. **`gpu_offload`** — `probe.list_devices(exe)` (llama.cpp: `llama-server.exe
+--list-devices`, fast, no model load, ~200 ms; parses `CUDA0: <name> (<total> MiB,
+<free> MiB free)`). Pass with the device name; Warn (`actionable: true`) with
+   "No GPU device — Arnold will run on CPU" when none. If the binary cannot be executed
+   at all, Fail with the spawn error (this is also where a missing MSVC runtime
+   surfaces first). A future engine supplies its own device listing behind the same
+   trait method.
 2. **`msvc_runtime`** — `LoadLibraryW("vcruntime140.dll")` and `("msvcp140.dll")`
    (via the `windows-sys`/`windows` crate already in the tree if present, else a thin
    `extern "system"` declaration). Pass when both load; Warn with the Microsoft
@@ -237,10 +281,10 @@ Two new checks in `preflight_run` (`preflight.rs`), following check 3's shape
 
 ```
 provision_model / restart_engine
-  → LlamaEngine::start_chat/start_embed  (-ngl <normalized>, -lv 4, piped stdio)
+  → LlamaEngine::start_chat/start_embed  (probe.gpu_args(gpu_layers), piped stdio)
   → spawn_log_reader (stdout + stderr) → ring buffer + <data>/logs/llama-*.log
-                                      → EngineInfoAccumulator::feed
-  → LlamaEngine::chat_info()/embed_info()  (Mutex<EngineRuntimeInfo>)
+                                      → probe.feed(line)
+  → probe.snapshot() → LlamaEngine::chat_info()/embed_info()  (Mutex<EngineRuntimeInfo>)
   → AppEvent::EngineRuntimeStatus  ──► app.js single listener
   → engine_runtime_info command    ──► System GPU row / Settings inline status
   → toast on non-gpu backend
@@ -293,32 +337,56 @@ provision_model / restart_engine
 
 ## 8. Risks
 
-- **Stderr parsing is a log-format dependency.** Mitigation: parsers are tolerant and
-  `Unknown`/`Cpu` are non-fatal; `--list-devices` provides an independent device check;
-  a build bump only degrades the row to `—`, never breaks the engine.
+- **Stderr parsing is a log-format dependency — but confined.** All five regexes live in
+  `ai/probe/llama_cpp.rs`. Parsers are tolerant and `Unknown`/`Cpu` are non-fatal;
+  `list_devices` provides an independent device check; a build bump only degrades the
+  row to `—`, never breaks the engine. Replacing the engine means writing a new probe
+  module, not editing UI, preflight, or the wire contract.
 - **`-lv 4` raises log volume.** Bounded by the 200-line ring and 2 MiB rotation.
 - **`auto` changes load behaviour** for users who deliberately pinned a number; the
   migration only rewrites the seeded `99`, so deliberate values survive.
 - **`LoadLibrary` probing** can produce false "missing" if the DLL is app-local only;
   check both the process search path and `engines/` before declaring it missing.
+- **Probe trait is speculative for one implementation.** Accepted deliberately: the
+  trait is five methods with a single impl today, which is cheap insurance against the
+  engine swap the project already expects. It must not grow beyond what the UI needs.
 
 ## 9. Out of scope
 
-Model download/management UI, multi-GPU tuning, alternative backends, VC++
+Model download/management UI, multi-GPU tuning, alternative backends (the probe
+abstraction exists so a future one is additive, not so one is built now), VC++
 redistributable bundling, changing the 18-tool AI surface, and any change to the
 proposal/confirmation flow.
 
 ## 10. Files touched (estimate)
 
-- `src-tauri/src/ai/engine.rs` — `gpu_layers`, `-lv 4`, reader spawn, `chat_info`/`embed_info`
+- `src-tauri/src/ai/engine.rs` — `gpu_layers`, probe wiring, reader spawn, `chat_info`/`embed_info`
 - `src-tauri/src/ai/engine_log.rs` (new) — reader, ring buffer, rotation, ANSI strip
-- `src-tauri/src/ai/engine_info.rs` (new) — accumulator + parsers
+- `src-tauri/src/ai/probe/mod.rs` (new) — `EngineProbe` trait, `DeviceInfo`, `ProbeError`
+- `src-tauri/src/ai/probe/llama_cpp.rs` (new) — flags, `--list-devices` parser, log parser
 - `src-tauri/src/events.rs` — `EngineRuntimeStatus`
 - `src-tauri/src/lib.rs` — settings reads, `engine_runtime_info`, `wire_tests`, spawn wiring
 - `src-tauri/src/preflight.rs` — `gpu_offload`, `msvc_runtime`
 - `src-tauri/src/db/settings.rs` — seed `auto`
+- `AGENTS.md` — D-97 migration-convention correction (done, §11)
 - `src-tauri/migrations/018_gpu_layers_auto.sql` (new)
 - `src/index.html` — `#llama-ngl` → text + help + inline status; requirements table (onboarding pane 0)
 - `src/js/tabs/settings.js`, `src/js/tabs/system.js`, `src/js/onboarding.js`, `src/js/notifications.js`
 - `src/js/requirements.js` (new), `src/styles/surfaces/system.css`
 - `tools/js-checks/requirements.test.mjs` (new), `tools/js-checks/engine-status.test.mjs` (new)
+
+## 11. Docs fix shipped with this change
+
+`AGENTS.md` contradicted the code in three places about migrations. Corrected to match
+`db/migrations.rs` (the authoritative behaviour):
+
+| Location           | Was                                                                             | Now                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Conventions        | "All migration files wrapped in `BEGIN; ... COMMIT;` — never bare DDL"          | bare statements only; runner wraps each file; legacy outer pair stripped; nested rejected |
+| Immutable Rules #3 | "No bare DDL in migration files — every migration is wrapped in `BEGIN/COMMIT`" | "No explicit transactions in migration files" + the runner chain named                    |
+| Decision D-97      | "`BEGIN/COMMIT` in every migration file"                                        | "Runner-supplied transaction per migration file" + the strip/reject rule                  |
+
+The File Structure section (line ~130) already described the correct behaviour and was
+left as-is. This matters beyond tidiness: the next migration (`018`) would have been
+written to the wrong convention otherwise, and every future agent reading `AGENTS.md`
+would repeat the mistake.
