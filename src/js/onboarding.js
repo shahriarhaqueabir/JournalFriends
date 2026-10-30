@@ -6,6 +6,7 @@
 import { invoke } from "./ipc.js";
 import { recordDiagnostic } from "./diagnostics.js";
 import { stringifyError } from "./notifications.js";
+import { requirementRows, requirementsTableHtml } from "./requirements.js";
 import {
   renderPersonaForm,
   collectPersonaAnswers,
@@ -41,6 +42,27 @@ export function isOnboardingOpen() {
   return !el("onboarding-overlay")?.classList.contains("hidden");
 }
 
+// Same table System shows (single source of truth in requirements.js).
+async function refreshRequirements() {
+  const container = document.getElementById("onboarding-requirements");
+  if (!container) return;
+  try {
+    const report = await invoke("engine_requirements", {}, { silent: true });
+    container.innerHTML = requirementsTableHtml(
+      requirementRows({
+        engineLabel: report.engine,
+        devices: report.devices,
+        msvcRuntime: report.msvc_runtime,
+        chatModel: report.chat_model,
+        embedModel: report.embed_model,
+      }),
+    );
+  } catch (e) {
+    console.error("[ONBOARDING] engine_requirements failed", e);
+    container.textContent = "Requirements unavailable.";
+  }
+}
+
 function goTo(step) {
   currentStep = Math.max(0, Math.min(TOTAL_STEPS - 1, step));
 
@@ -72,6 +94,7 @@ function goTo(step) {
     }
   }
 
+  if (currentStep === 0) refreshRequirements();
   if (currentStep === 1) refreshEnginePath();
   if (currentStep === 5) runEngineCheck();
   window.renderIcons?.();

@@ -10,6 +10,8 @@ import { initAiSidebar, handleAppEvent } from "./ai-sidebar.js";
 import { initOnboarding, showOnboarding } from "./onboarding.js";
 import { initVault } from "./vault.js";
 import { invoke } from "./ipc.js";
+import { showToast } from "./notifications.js";
+import { gpuWarningOnce } from "./engine-status.js";
 // PureDashboard (vendored) — registers <puredashboard-*> custom elements.
 import "/assets/libs/puredashboard/reactive.js";
 import "/assets/libs/puredashboard/card.js";
@@ -17,6 +19,27 @@ import "/assets/libs/puredashboard/statistic.js";
 import "/assets/libs/puredashboard/badge.js";
 import "/assets/libs/puredashboard/button.js";
 import { recordDiagnostic } from "./diagnostics.js";
+
+async function warnWhenEngineStatusKnown() {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const snapshot = await invoke(
+        "engine_runtime_info",
+        {},
+        { silent: true },
+      );
+      const info = snapshot?.chat;
+      if (info?.backend && info.backend !== "unknown") {
+        const warning = gpuWarningOnce(info);
+        if (warning) showToast(warning, { variant: "warn", timeoutMs: 8000 });
+        return;
+      }
+    } catch {
+      // Engine state can be unavailable during unlock/reconfiguration.
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+  }
+}
 
 // SINGLE typed event listener (D-96)
 // Guarded: when the page runs outside the Tauri shell (plain browser, e.g.
@@ -31,6 +54,13 @@ if (globalThis.__TAURI__?.event?.listen) {
       showOnboarding();
       return;
     }
+    if (payload?.type === "engine_runtime_status") {
+      window.refreshSystemTab?.();
+      const warning = gpuWarningOnce(payload.chat);
+      if (warning) showToast(warning, { variant: "warn", timeoutMs: 8000 });
+    } else if (payload?.type === "llama_engine_started") {
+      if (payload.service === "chat") void warnWhenEngineStatusKnown();
+    }
     // Dispatch to relevant modules
     handleAppEvent(payload);
   });
@@ -39,7 +69,9 @@ if (globalThis.__TAURI__?.event?.listen) {
 // Assistant sidebar collapse (D-149) — per-tab remembered state.
 const ASSISTANT_KEY = (tab) => `ui.assistant.collapsed.${tab}`;
 const assistantToggle = document.getElementById("btn-toggle-assistant");
-const assistantRailToggle = document.getElementById("btn-toggle-assistant-rail");
+const assistantRailToggle = document.getElementById(
+  "btn-toggle-assistant-rail",
+);
 
 function activeTab() {
   return document.querySelector(".nav-item.active")?.dataset.tab || "journal";
@@ -68,7 +100,9 @@ function restoreAssistantState(tab) {
 }
 
 assistantToggle?.addEventListener("click", () => setAssistantCollapsed(true));
-assistantRailToggle?.addEventListener("click", () => setAssistantCollapsed(false));
+assistantRailToggle?.addEventListener("click", () =>
+  setAssistantCollapsed(false),
+);
 
 // Left sidebar collapse — mirror of assistant collapse (icon-only rail).
 const LEFT_KEY = "ui.left.collapsed";
@@ -76,16 +110,29 @@ const leftToggle = document.getElementById("btn-toggle-left");
 function setLeftCollapsed(collapsed, persist = true) {
   document.body.classList.toggle("left-collapsed", collapsed);
   leftToggle?.setAttribute("aria-expanded", String(!collapsed));
-  leftToggle?.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-  leftToggle?.setAttribute("title", collapsed ? "Expand sidebar" : "Collapse sidebar");
+  leftToggle?.setAttribute(
+    "aria-label",
+    collapsed ? "Expand sidebar" : "Collapse sidebar",
+  );
+  leftToggle?.setAttribute(
+    "title",
+    collapsed ? "Expand sidebar" : "Collapse sidebar",
+  );
   const icon = leftToggle?.querySelector("hj-icon");
-  if (icon) icon.setAttribute("name", collapsed ? "chevron-right" : "chevron-left");
+  if (icon)
+    icon.setAttribute("name", collapsed ? "chevron-right" : "chevron-left");
   if (persist) {
-    try { localStorage.setItem(LEFT_KEY, collapsed ? "1" : "0"); } catch (e) { console.warn("left state persist failed", e); }
+    try {
+      localStorage.setItem(LEFT_KEY, collapsed ? "1" : "0");
+    } catch (e) {
+      console.warn("left state persist failed", e);
+    }
   }
 }
 let leftSaved = null;
-try { leftSaved = localStorage.getItem(LEFT_KEY); } catch (e) {}
+try {
+  leftSaved = localStorage.getItem(LEFT_KEY);
+} catch (e) {}
 setLeftCollapsed(leftSaved === "1", false);
 leftToggle?.addEventListener("click", () => {
   const now = document.body.classList.contains("left-collapsed");
@@ -103,12 +150,10 @@ document.querySelectorAll(".nav-item").forEach((item) => {
       return;
     }
 
-    document
-      .querySelectorAll(".nav-item")
-      .forEach((n) => {
-        n.classList.remove("active");
-        n.setAttribute("aria-current", "false");
-      });
+    document.querySelectorAll(".nav-item").forEach((n) => {
+      n.classList.remove("active");
+      n.setAttribute("aria-current", "false");
+    });
     item.classList.add("active");
     item.setAttribute("aria-current", "page");
     restoreAssistantState(tab);
@@ -119,9 +164,10 @@ document.querySelectorAll(".nav-item").forEach((item) => {
 
     if (tab === "settings") {
       if (window.refreshAiSettings) window.refreshAiSettings();
-      if (window.refreshSettingsDiagnostics) window.refreshSettingsDiagnostics();
+      if (window.refreshSettingsDiagnostics)
+        window.refreshSettingsDiagnostics();
       if (!window._settingsInitialized) {
-        import("./tabs/settings.js").then(m => m.initSettings());
+        import("./tabs/settings.js").then((m) => m.initSettings());
         window._settingsInitialized = true;
       }
     }
@@ -141,7 +187,11 @@ document.querySelectorAll(".nav-item").forEach((item) => {
     }
 
     if (tab === "insights") {
-      try { refreshInsights(); } catch (e) { console.warn("refreshInsights failed", e); }
+      try {
+        refreshInsights();
+      } catch (e) {
+        console.warn("refreshInsights failed", e);
+      }
     }
   });
 });
@@ -168,7 +218,11 @@ async function checkEngine() {
     if (valueEl) valueEl.textContent = text;
   };
   try {
-    const { chat, embed } = await invoke("check_engine_health", {}, { silent: true });
+    const { chat, embed } = await invoke(
+      "check_engine_health",
+      {},
+      { silent: true },
+    );
     if (chat && embed) {
       setStatus("ok", "AI Engine online");
     } else {
@@ -247,42 +301,51 @@ setAppVersion();
 setInterval(checkEngine, 30000);
 
 // Load and Init Memory tab when clicked
-document.querySelector('[data-tab="memory"]')?.addEventListener('click', async () => {
-  const loaded = await loadView('memory', 'views/memory.html');
-  if (loaded && !window._memoryInitialized) {
-    window._memoryInitialized = true;
-    const m = await import('./tabs/memory.js');
-    m.initMemory();
-  }
-});
+document
+  .querySelector('[data-tab="memory"]')
+  ?.addEventListener("click", async () => {
+    const loaded = await loadView("memory", "views/memory.html");
+    if (loaded && !window._memoryInitialized) {
+      window._memoryInitialized = true;
+      const m = await import("./tabs/memory.js");
+      m.initMemory();
+    }
+  });
 
 // Load Inbox view when clicked
-document.querySelector('[data-tab="inbox"]')?.addEventListener('click', async () => {
-  await loadView('inbox', 'views/inbox.html');
-  initInbox();
-});
+document
+  .querySelector('[data-tab="inbox"]')
+  ?.addEventListener("click", async () => {
+    await loadView("inbox", "views/inbox.html");
+    initInbox();
+  });
 
 // Load Reports view when clicked
-document.querySelector('[data-tab="reports"]')?.addEventListener('click', async () => {
-  await loadView('reports', 'views/reports.html');
-  initReports();
-});
+document
+  .querySelector('[data-tab="reports"]')
+  ?.addEventListener("click", async () => {
+    await loadView("reports", "views/reports.html");
+    initReports();
+  });
 
 // Load About view when clicked
-document.querySelector('[data-tab="about"]')?.addEventListener('click', async () => {
-  await loadView('about', 'views/about.html');
-});
+document
+  .querySelector('[data-tab="about"]')
+  ?.addEventListener("click", async () => {
+    await loadView("about", "views/about.html");
+  });
 
 // Refresh events on tab switch
-document.querySelector('[data-tab="events"]')?.addEventListener('click', () => {
+document.querySelector('[data-tab="events"]')?.addEventListener("click", () => {
   initEvents();
 });
 
 // Load and init AI Control Center when clicked
-document.querySelector('[data-tab="ai"]')?.addEventListener('click', async () => {
-  if (!window._aiControlsInitialized) {
-    const m = await import('./tabs/ai-controls.js');
-    m.initAiControls();
-  }
-});
-
+document
+  .querySelector('[data-tab="ai"]')
+  ?.addEventListener("click", async () => {
+    if (!window._aiControlsInitialized) {
+      const m = await import("./tabs/ai-controls.js");
+      m.initAiControls();
+    }
+  });
