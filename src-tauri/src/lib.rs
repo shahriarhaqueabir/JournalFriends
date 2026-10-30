@@ -2323,13 +2323,25 @@ async fn engine_requirements(
         Vec::new()
     } else {
         let exe = std::path::PathBuf::from(resolved);
-        match tokio::task::spawn_blocking(move || probe.list_devices(&exe)).await {
-            Ok(Ok(devices)) => devices,
-            Ok(Err(e)) => {
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            tokio::task::spawn_blocking(move || probe.list_devices(&exe)),
+        )
+        .await
+        {
+            Ok(Ok(Ok(devices))) => devices,
+            Ok(Ok(Err(e))) => {
                 tracing::warn!(target: "engine", error = %e, "device listing failed");
                 Vec::new()
             }
-            Err(_) => Vec::new(),
+            Ok(Err(e)) => {
+                tracing::warn!(target: "engine", error = %e, "device listing task panicked");
+                Vec::new()
+            }
+            Err(_) => {
+                tracing::warn!(target: "engine", "device listing timed out after 10s");
+                Vec::new()
+            }
         }
     };
 

@@ -82,7 +82,9 @@ fn device_line_re() -> &'static Regex {
 
 fn using_device_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"using device (\S+) \(([^)]+)\)").expect("valid device regex"))
+    RE.get_or_init(|| {
+        Regex::new(r"using device (\S+) \((.+)\) \([0-9a-fA-F]{4}:").expect("valid device regex")
+    })
 }
 
 fn offloaded_re() -> &'static Regex {
