@@ -94,6 +94,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "ai_message_tool_call_id",
         sql: include_str!("../../migrations/017_ai_message_tool_call_id.sql"),
     },
+    Migration {
+        version: 18,
+        name: "gpu_layers_auto",
+        sql: include_str!("../../migrations/018_gpu_layers_auto.sql"),
+    },
 ];
 
 /// Migrations that rebuild a table with FK dependents. Reserved: SQLite FK
@@ -410,5 +415,52 @@ mod tests {
             )
             .unwrap();
         assert_eq!(inbound, 0, "no table may reference proposed_inbox");
+    }
+
+    #[test]
+    fn gpu_layers_migration_rewrites_only_the_legacy_pin() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!("../../migrations/001_initial.sql"))
+            .unwrap();
+        conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES ('llama_ngl', '99', 'x')",
+            [],
+        )
+        .unwrap();
+
+        let run = |conn: &mut Connection| {
+            let tx = conn.transaction().unwrap();
+            let sql =
+                strip_outer_transaction(include_str!("../../migrations/018_gpu_layers_auto.sql"));
+            ensure_no_explicit_transactions(&sql, "018").unwrap();
+            tx.execute_batch(&sql).unwrap();
+            tx.commit().unwrap();
+        };
+
+        run(&mut conn);
+        let value: String = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key='llama_ngl'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(value, "auto");
+
+        // A deliberate pin must survive re-running the migration.
+        conn.execute(
+            "UPDATE app_settings SET value='40' WHERE key='llama_ngl'",
+            [],
+        )
+        .unwrap();
+        run(&mut conn);
+        let kept: String = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key='llama_ngl'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "40");
     }
 }
