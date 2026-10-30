@@ -274,16 +274,32 @@ pub async fn run_preflight(
             Err(_) => String::new(),
         };
         let resolved = crate::resolve_engine_exe(&paths.data_dir, resource.as_deref(), &saved);
+        let msvc_ok = crate::runtime_env::msvc_runtime_present();
+        // If the VC++ runtime is missing, the binary can't even start — don't
+        // report a cryptic "GPU offload failed" on top of the runtime warning.
         let result = if resolved.is_empty() {
             Err(crate::ai::probe::ProbeError(
                 "no llama-server.exe found".into(),
             ))
+        } else if !msvc_ok {
+            Err(crate::ai::probe::ProbeError(
+                "engine could not be executed (missing Microsoft Visual C++ runtime)".into(),
+            ))
         } else {
             let probe = crate::ai::probe::default_probe();
             let exe = std::path::PathBuf::from(resolved);
-            tokio::task::spawn_blocking(move || probe.list_devices(&exe))
-                .await
-                .unwrap_or_else(|e| Err(crate::ai::probe::ProbeError(e.to_string())))
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                tokio::task::spawn_blocking(move || probe.list_devices(&exe)),
+            )
+            .await
+            {
+                Ok(Ok(r)) => r,
+                Ok(Err(e)) => Err(crate::ai::probe::ProbeError(e.to_string())),
+                Err(_) => Err(crate::ai::probe::ProbeError(
+                    "device listing timed out after 10s".into(),
+                )),
+            }
         };
         checks.push(gpu_check_from(result));
         checks.push(check_msvc_runtime());
