@@ -1,10 +1,10 @@
 pub mod analysis;
 pub mod client;
 pub mod engine;
-pub mod probe;
 pub mod keywords;
 pub mod models;
 pub mod ports;
+pub mod probe;
 pub mod prompt;
 pub mod sse;
 pub mod stream;

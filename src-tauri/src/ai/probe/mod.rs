@@ -71,6 +71,8 @@ impl Default for EngineRuntimeInfo {
     }
 }
 
+pub mod llama_cpp;
+
 /// One engine implementation. Six methods is the whole contract — it must not
 /// grow past what the UI actually reads.
 pub trait EngineProbe: Send + Sync {
@@ -86,6 +88,13 @@ pub trait EngineProbe: Send + Sync {
     fn reset(&mut self);
     /// Current best-known state.
     fn snapshot(&self) -> EngineRuntimeInfo;
+}
+
+pub use llama_cpp::LlamaCppProbe;
+
+/// The engine the app ships with today.
+pub fn default_probe() -> Box<dyn EngineProbe> {
+    Box::new(LlamaCppProbe::default())
 }
 
 #[cfg(test)]
