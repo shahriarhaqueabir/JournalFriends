@@ -124,6 +124,7 @@ export async function initSettings() {
   }
 
   initLLMEngineSection();
+  initAiFeaturesSection();
   initAppearanceSection();
 
   window.refreshAiSettings();
@@ -347,6 +348,65 @@ function renderSystemCheck(summaryEl, listEl, report) {
     warn: warnCount,
   });
   window.renderIcons?.();
+}
+
+// ── AI Features: master enable/disable toggle ─────────────────
+async function initAiFeaturesSection() {
+  const toggle = document.getElementById("ai-enabled");
+  const container =
+    document.getElementById("ai-config-container") ||
+    document.getElementById("ai-config") ||
+    document.getElementById("ai-features-config");
+  if (!toggle) return;
+
+  async function readEnabled() {
+    try {
+      return await invoke("ai_enabled_get");
+    } catch (e) {
+      try {
+        const val = await invoke("setting_get", { key: "ai_enabled" });
+        return String(val ?? "").trim().toLowerCase() === "true";
+      } catch (e2) {
+        console.error("[AI FEATURES] read enabled failed", e2);
+        return false;
+      }
+    }
+  }
+
+  async function applyVisibility(enabled) {
+    if (!container) return;
+    if (enabled) container.classList.remove("hidden");
+    else container.classList.add("hidden");
+  }
+
+  const enabled = await readEnabled();
+  toggle.checked = !!enabled;
+  await applyVisibility(!!enabled);
+
+  toggle.addEventListener("change", async () => {
+    const nowEnabled = !!toggle.checked;
+    try {
+      await invoke("ai_enabled_set", { enabled: nowEnabled });
+    } catch (e) {
+      console.error("[AI FEATURES] persist failed", e);
+      try {
+        await invoke("setting_set", {
+          key: "ai_enabled",
+          value: nowEnabled ? "true" : "false",
+        });
+      } catch (e2) {
+        console.error("[AI FEATURES] fallback persist failed", e2);
+      }
+    }
+    await applyVisibility(nowEnabled);
+    if (nowEnabled) {
+      try {
+        await invoke("provision_model_cmd");
+      } catch (e) {
+        console.error("[AI FEATURES] provisioning failed", e);
+      }
+    }
+  });
 }
 
 /**
