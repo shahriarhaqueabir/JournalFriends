@@ -417,7 +417,10 @@ mod tests {
     fn msvc_check_is_a_warn_or_pass_with_a_message() {
         let check = check_msvc_runtime();
         assert_eq!(check.id, "msvc_runtime");
-        assert!(matches!(check.status, CheckStatus::Pass | CheckStatus::Warn));
+        assert!(matches!(
+            check.status,
+            CheckStatus::Pass | CheckStatus::Warn
+        ));
         assert!(!check.message.is_empty());
         if check.status == CheckStatus::Warn {
             assert!(check.actionable, "a missing runtime needs an action");

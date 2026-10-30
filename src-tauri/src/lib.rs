@@ -11,11 +11,11 @@ mod provision;
 mod runtime_env;
 mod scheduler;
 
+use ai::probe::EngineProbe as _;
 use chrono::Utc;
 use error::AppError;
 use rusqlite::params;
 use serde::Serialize;
-use ai::probe::EngineProbe as _;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tauri::{Listener, Manager};
@@ -4022,7 +4022,13 @@ mod wire_tests {
             embed_model: String::new(),
         };
         let v = serde_json::to_value(&report).expect("must serialize");
-        for key in ["engine", "devices", "msvc_runtime", "chat_model", "embed_model"] {
+        for key in [
+            "engine",
+            "devices",
+            "msvc_runtime",
+            "chat_model",
+            "embed_model",
+        ] {
             assert!(v.get(key).is_some(), "missing wire key: {key}");
         }
         assert!(v.get("msvcRuntime").is_none(), "camelCase leak");
