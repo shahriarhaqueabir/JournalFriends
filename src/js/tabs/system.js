@@ -4,6 +4,8 @@
 // Task 8 appends engines / analysis queue / DB / SQL controls below.
 import { invoke } from "../ipc.js";
 import { escapeHtml } from "../sanitize.js";
+import { requirementRows, requirementsTableHtml } from "../requirements.js";
+import { backendLabel } from "../engine-status.js";
 import { showToast, stringifyError } from "../notifications.js";
 import { recordDiagnostic } from "../diagnostics.js";
 
@@ -46,6 +48,88 @@ function setCell(id, text) {
   if (!el) return;
   el.textContent = text ?? "—";
   if (el.tagName === "CODE") el.title = text ?? "";
+}
+
+// Engine-neutral GPU state. `engine_runtime_info` returns snake_case fields.
+async function refreshEngineRuntime() {
+  try {
+    const info = await invoke("engine_runtime_info", {}, { silent: true });
+    const chat = info?.chat || {};
+    const embed = info?.embed || {};
+    setCell("rt-engine-name", chat.engine || embed.engine || "-");
+    for (const [service, runtime] of [
+      ["chat", chat],
+      ["embed", embed],
+    ]) {
+      setCell(`rt-${service}-backend`, backendLabel(runtime));
+      setCell(
+        `rt-${service}-device`,
+        runtime.device_name
+          ? `${runtime.device_name}${runtime.device ? ` (${runtime.device})` : ""}`
+          : "-",
+      );
+      setCell(
+        `rt-${service}-layers`,
+        runtime.layers_total
+          ? `${runtime.layers_offloaded}/${runtime.layers_total}`
+          : "-",
+      );
+      setCell(
+        `rt-${service}-vram`,
+        runtime.vram_total_mib
+          ? `${runtime.vram_free_mib ?? "-"} MiB free of ${runtime.vram_total_mib} MiB`
+          : "-",
+      );
+      setCell(
+        `rt-${service}-buffers`,
+        runtime.model_mib
+          ? `${runtime.model_mib} MiB model / ${runtime.kv_mib ?? "-"} MiB KV`
+          : "-",
+      );
+      const dot = document.getElementById(`rt-${service}-backend-dot`);
+      if (dot) {
+        // Reuse the existing status-dot classes from layout.css.
+        dot.className = "status-dot";
+        if (runtime.backend === "gpu") dot.classList.add("ok");
+        else if (runtime.backend === "cpu" || runtime.backend === "partial") {
+          dot.classList.add("warn");
+        }
+      }
+    }
+  } catch (e) {
+    // Genuine IPC/serialization failure (not a locked vault or stopped engine,
+    // which the success path already handles). Blank the row and log it.
+    console.warn("[SYSTEM] engine runtime refresh failed", e);
+    setCell("rt-engine-name", "-");
+    for (const service of ["chat", "embed"]) {
+      for (const field of ["backend", "device", "layers", "vram", "buffers"]) {
+        setCell(`rt-${service}-${field}`, "-");
+      }
+      const dot = document.getElementById(`rt-${service}-backend-dot`);
+      if (dot) dot.className = "status-dot";
+    }
+    setCell("rt-chat-backend", "engine not running");
+    setCell("rt-embed-backend", "engine not running");
+  }
+}
+
+async function refreshRequirements() {
+  const container = document.getElementById("requirements-container");
+  if (!container) return;
+  try {
+    const report = await invoke("engine_requirements", {}, { silent: true });
+    const rows = requirementRows({
+      engineLabel: report.engine,
+      devices: report.devices,
+      msvcRuntime: report.msvc_runtime,
+      chatModel: report.chat_model,
+      embedModel: report.embed_model,
+    });
+    container.innerHTML = requirementsTableHtml(rows);
+  } catch (e) {
+    container.textContent = "Could not read requirements.";
+    console.error("[SYSTEM] engine_requirements failed", e);
+  }
 }
 
 async function refreshRuntime() {
@@ -290,6 +374,7 @@ function wireEngineControls() {
         const summary = await invoke("provision_model_cmd");
         setStatus("engine-start-status", summary, "success");
         await refreshEngines();
+        await refreshEngineRuntime();
         await checkHealthNow();
       } catch (e) {
         setStatus("engine-start-status", stringifyError(e), "error");
@@ -325,12 +410,14 @@ function wireEngineControls() {
             "success",
           );
           await refreshEngines();
+          await refreshEngineRuntime();
           await checkHealthNow();
           return;
         }
         if (outcome && outcome.note)
           setStatus("engine-start-status", outcome.note, "success");
         await refreshEngines();
+        await refreshEngineRuntime();
         await checkHealthNow();
       } catch (e) {
         setStatus("engine-start-status", stringifyError(e), "error");
@@ -534,6 +621,8 @@ export function initSystem() {
   refreshRuntime();
   refreshLogTail();
   refreshEngines();
+  refreshEngineRuntime();
+  refreshRequirements();
   checkHealthNow();
   refreshQueue();
 
@@ -546,6 +635,7 @@ export function initSystem() {
   engineTimer = setInterval(() => {
     if (systemTabActive()) {
       refreshEngines();
+      refreshEngineRuntime();
       checkHealthNow();
     }
   }, ENGINE_MS);
@@ -554,6 +644,8 @@ export function initSystem() {
     refreshRuntime();
     refreshLogTail();
     refreshEngines();
+    refreshEngineRuntime();
+    refreshRequirements();
     checkHealthNow();
     refreshQueue();
   };

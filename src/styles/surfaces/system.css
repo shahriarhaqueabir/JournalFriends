@@ -243,3 +243,16 @@
     justify-content: flex-start;
   }
 }
+
+.requirements-table .req-state {
+  color: var(--color-text-muted);
+}
+.requirements-table .req-detected {
+  color: var(--color-text);
+}
+.requirements-table .req-missing {
+  color: var(--color-warn);
+}
+.requirements-table .req-included {
+  color: var(--color-text-muted);
+}

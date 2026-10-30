@@ -107,7 +107,50 @@
 
     <section class="sys-section">
       <h2>AI Engines</h2>
-      <p>llama-server processes — chat (:8080) and embed (:8081).</p>
+      <p>
+        The <span class="mono" id="rt-engine-name">-</span> runtime — where chat
+        (:8080) and embed (:8081) are actually running.
+      </p>
+      <table class="data-table runtime-table">
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col">Backend</th>
+            <th scope="col">Device</th>
+            <th scope="col">Layers offloaded</th>
+            <th scope="col">VRAM</th>
+            <th scope="col">Model / KV buffer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Chat</th>
+            <td>
+              <span class="status-cell">
+                <span class="status-dot" id="rt-chat-backend-dot"></span>
+                <span class="mono" id="rt-chat-backend">-</span>
+              </span>
+            </td>
+            <td class="mono" id="rt-chat-device">-</td>
+            <td class="mono" id="rt-chat-layers">-</td>
+            <td class="mono" id="rt-chat-vram">-</td>
+            <td class="mono" id="rt-chat-buffers">-</td>
+          </tr>
+          <tr>
+            <th scope="row">Embed</th>
+            <td>
+              <span class="status-cell">
+                <span class="status-dot" id="rt-embed-backend-dot"></span>
+                <span class="mono" id="rt-embed-backend">-</span>
+              </span>
+            </td>
+            <td class="mono" id="rt-embed-device">-</td>
+            <td class="mono" id="rt-embed-layers">-</td>
+            <td class="mono" id="rt-embed-vram">-</td>
+            <td class="mono" id="rt-embed-buffers">-</td>
+          </tr>
+        </tbody>
+      </table>
       <table class="data-table">
         <thead>
           <tr>
@@ -210,6 +253,14 @@
         >
         <span id="engine-start-status" class="settings-status"></span>
       </div>
+    </section>
+
+    <section class="sys-section">
+      <h2>Requirements</h2>
+      <p>
+        What Arnold ships with, what Windows must provide, and what you supply.
+      </p>
+      <div id="requirements-container">-</div>
     </section>
 
     <section class="sys-section">
