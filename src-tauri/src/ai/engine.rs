@@ -1,7 +1,9 @@
+use crate::ai::engine_log::{self, EngineLogRing};
+use crate::ai::probe::{default_probe, EngineProbe, EngineRuntimeInfo};
 use base64::Engine as _;
 use std::path::PathBuf;
-use std::process::{Child, Command};
 use std::sync::Arc;
+use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
 // F-004: generate a fresh API key from OS entropy. 32 random bytes → base64.
@@ -20,39 +22,65 @@ pub struct EngineConfig {
     pub embed_model: PathBuf,
     pub chat_port: u16,
     pub embed_port: u16,
-    pub ngl: u32,
+    /// Raw `llama_ngl` setting. Normalised by the probe, never here.
+    pub gpu_layers: String,
     pub ctx_size: u32,
     pub api_key: String,
+    /// Directory for `<data>/logs/llama-<service>.log`.
+    pub log_dir: PathBuf,
 }
 
 pub struct LlamaEngine {
     config: EngineConfig,
     chat_child: Arc<Mutex<Option<Child>>>,
     embed_child: Arc<Mutex<Option<Child>>>,
+    chat_probe: Arc<Mutex<Box<dyn EngineProbe>>>,
+    embed_probe: Arc<Mutex<Box<dyn EngineProbe>>>,
+    chat_ring: EngineLogRing,
+    embed_ring: EngineLogRing,
+    chat_reader: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    embed_reader: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 /// Chat-server spawn arguments. Kept pure so the tool-capable flags are
 /// regression-tested without starting a model.
-fn chat_args(config: &EngineConfig) -> Vec<std::ffi::OsString> {
-    let args: Vec<std::ffi::OsString> = vec![
-        "-m".into(),
-        config.chat_model.clone().into_os_string(),
-        "--host".into(),
-        "127.0.0.1".into(),
-        "--port".into(),
-        config.chat_port.to_string().into(),
-        "-ngl".into(),
-        config.ngl.to_string().into(),
-        "-c".into(),
-        config.ctx_size.to_string().into(),
-        "--api-key".into(),
-        config.api_key.clone().into(),
-        "--no-warmup".into(),
-        // Tool calling needs a Jinja chat template. Build 10952 enables this
-        // by default, but pass it explicitly so an older bundled binary or a
-        // changed default cannot silently disable tool calls.
-        "--jinja".into(),
-    ];
+fn chat_args(config: &EngineConfig, probe: &dyn EngineProbe) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = Vec::with_capacity(16);
+    args.push("-m".into());
+    args.push(config.chat_model.clone().into_os_string());
+    args.push("--host".into());
+    args.push("127.0.0.1".into());
+    args.push("--port".into());
+    args.push(config.chat_port.to_string().into());
+    // Engine-specific GPU flags (llama.cpp: -ngl <value> -lv 4).
+    args.extend(probe.gpu_args(&config.gpu_layers));
+    args.push("-c".into());
+    args.push(config.ctx_size.to_string().into());
+    args.push("--api-key".into());
+    args.push(config.api_key.clone().into());
+    args.push("--no-warmup".into());
+    // Tool calling needs a Jinja chat template. Build 10952 enables this by
+    // default, but pass it explicitly so an older bundled binary or a changed
+    // default cannot silently disable tool calls.
+    args.push("--jinja".into());
+    args
+}
+
+/// Embedding-server spawn arguments (pure, same reason as `chat_args`).
+fn embed_args(config: &EngineConfig, probe: &dyn EngineProbe) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = Vec::with_capacity(12);
+    args.push("-m".into());
+    args.push(config.embed_model.clone().into_os_string());
+    args.push("--host".into());
+    args.push("127.0.0.1".into());
+    args.push("--port".into());
+    args.push(config.embed_port.to_string().into());
+    args.push("--embeddings".into());
+    args.push("--pooling".into());
+    args.push("cls".into());
+    args.extend(probe.gpu_args(&config.gpu_layers));
+    args.push("--api-key".into());
+    args.push(config.api_key.clone().into());
     args
 }
 
@@ -92,6 +120,12 @@ impl LlamaEngine {
             config,
             chat_child: Arc::new(Mutex::new(None)),
             embed_child: Arc::new(Mutex::new(None)),
+            chat_probe: Arc::new(Mutex::new(default_probe())),
+            embed_probe: Arc::new(Mutex::new(default_probe())),
+            chat_ring: engine_log::new_ring(),
+            embed_ring: engine_log::new_ring(),
+            chat_reader: Arc::new(Mutex::new(None)),
+            embed_reader: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -107,15 +141,64 @@ impl LlamaEngine {
             ));
         }
 
-        let output = Command::new(&self.config.exe_path)
-            .args(chat_args(&self.config))
+        let args = {
+            let probe = self.chat_probe.lock().await;
+            chat_args(&self.config, probe.as_ref())
+        };
+        let mut proc = Command::new(&self.config.exe_path)
+            .args(args)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| format!("Failed to spawn chat server: {}", e))?;
 
-        *child = Some(output);
+        let stdout = proc.stdout.take();
+        let stderr = proc.stderr.take();
+        *child = Some(proc);
+        drop(child);
+
+        self.start_reader("chat", stdout, stderr).await;
         Ok(())
+    }
+
+    /// Fresh probe state per start, then drain both pipes.
+    async fn start_reader(
+        &self,
+        service: &'static str,
+        stdout: Option<tokio::process::ChildStdout>,
+        stderr: Option<tokio::process::ChildStderr>,
+    ) {
+        let (probe, ring, slot, file_name) = if service == "chat" {
+            (
+                self.chat_probe.clone(),
+                self.chat_ring.clone(),
+                self.chat_reader.clone(),
+                "llama-chat.log",
+            )
+        } else {
+            (
+                self.embed_probe.clone(),
+                self.embed_ring.clone(),
+                self.embed_reader.clone(),
+                "llama-embed.log",
+            )
+        };
+        probe.lock().await.reset();
+        if let Some(handle) = slot.lock().await.take() {
+            handle.abort();
+        }
+        if let Some(out) = stdout {
+            engine_log::spawn_output_drain(out);
+        }
+        if let Some(err) = stderr {
+            let handle = engine_log::spawn_engine_log_reader(
+                err,
+                self.config.log_dir.join(file_name),
+                ring,
+                probe,
+            );
+            *slot.lock().await = Some(handle);
+        }
     }
 
     pub async fn start_embed(&self) -> Result<(), EmbedStartError> {
@@ -127,49 +210,50 @@ impl LlamaEngine {
             return Err(EmbedStartError::PortInUse(self.config.embed_port));
         }
 
-        let output = Command::new(&self.config.exe_path)
-            .arg("-m")
-            .arg(&self.config.embed_model)
-            .arg("--host")
-            .arg("127.0.0.1")
-            .arg("--port")
-            .arg(self.config.embed_port.to_string())
-            .arg("--embeddings")
-            .arg("--pooling")
-            .arg("cls")
-            .arg("-ngl")
-            .arg(self.config.ngl.to_string())
-            .arg("--api-key")
-            .arg(&self.config.api_key)
+        let args = {
+            let probe = self.embed_probe.lock().await;
+            embed_args(&self.config, probe.as_ref())
+        };
+        let mut proc = Command::new(&self.config.exe_path)
+            .args(args)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| EmbedStartError::Spawn(e.to_string()))?;
 
-        *child = Some(output);
+        let stdout = proc.stdout.take();
+        let stderr = proc.stderr.take();
+        *child = Some(proc);
+        drop(child);
+
+        self.start_reader("embed", stdout, stderr).await;
         Ok(())
     }
 
     pub async fn stop_chat(&self) {
-        let mut child = self.chat_child.lock().await;
-        let proc = child.take();
-        drop(child);
+        let proc = { self.chat_child.lock().await.take() };
         if let Some(mut proc) = proc {
-            let _ = proc.kill();
+            let _ = proc.kill().await;
             // Reap the process so the OS releases the port/PID before we spawn
             // a replacement; otherwise restart_engine can leave a stray child.
-            let _ = tokio::task::spawn_blocking(move || proc.wait()).await;
+            let _ = proc.wait().await;
         }
+        if let Some(handle) = self.chat_reader.lock().await.take() {
+            handle.abort();
+        }
+        self.chat_probe.lock().await.reset();
     }
 
     pub async fn stop_embed(&self) {
-        let mut child = self.embed_child.lock().await;
-        let proc = child.take();
-        drop(child);
+        let proc = { self.embed_child.lock().await.take() };
         if let Some(mut proc) = proc {
-            let _ = proc.kill();
-            let _ = tokio::task::spawn_blocking(move || proc.wait()).await;
+            let _ = proc.kill().await;
+            let _ = proc.wait().await;
         }
+        if let Some(handle) = self.embed_reader.lock().await.take() {
+            handle.abort();
+        }
+        self.embed_probe.lock().await.reset();
     }
 
     pub async fn stop_all(&self) {
@@ -216,8 +300,8 @@ impl LlamaEngine {
         match child.as_mut() {
             Some(proc) => match proc.try_wait() {
                 Ok(Some(_)) => None,
-                Ok(None) => Some(proc.id()),
-                Err(_) => Some(proc.id()),
+                Ok(None) => proc.id(),
+                Err(_) => proc.id(),
             },
             None => None,
         }
@@ -251,11 +335,40 @@ impl LlamaEngine {
     pub fn embed_port(&self) -> u16 {
         self.config.embed_port
     }
+
+    /// Engine-neutral runtime state for the chat server.
+    pub async fn chat_info(&self) -> EngineRuntimeInfo {
+        let mut probe = self.chat_probe.lock().await;
+        if !matches!(self.chat_status().await, EngineStatus::Running) {
+            probe.reset();
+        }
+        probe.snapshot()
+    }
+
+    /// Engine-neutral runtime state for the embed server.
+    pub async fn embed_info(&self) -> EngineRuntimeInfo {
+        let mut probe = self.embed_probe.lock().await;
+        if !matches!(self.embed_status().await, EngineStatus::Running) {
+            probe.reset();
+        }
+        probe.snapshot()
+    }
+
+    /// Last `n` drained log lines for a service (`"chat"` / `"embed"`).
+    pub async fn last_log_lines(&self, service: &str, n: usize) -> Vec<String> {
+        let ring = if service == "chat" {
+            &self.chat_ring
+        } else {
+            &self.embed_ring
+        };
+        engine_log::tail(ring, n)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ai::probe::LlamaCppProbe;
 
     fn test_config() -> EngineConfig {
         EngineConfig {
@@ -264,10 +377,15 @@ mod tests {
             embed_model: PathBuf::from("embed.gguf"),
             chat_port: 18080,
             embed_port: 18081,
-            ngl: 99,
+            gpu_layers: "auto".into(),
             ctx_size: 16384,
             api_key: "k".into(),
+            log_dir: PathBuf::from("logs"),
         }
+    }
+
+    fn probe() -> LlamaCppProbe {
+        LlamaCppProbe::default()
     }
 
     fn arg_value<'a>(args: &'a [std::ffi::OsString], flag: &str) -> &'a str {
@@ -282,17 +400,59 @@ mod tests {
     }
 
     #[test]
-    fn chat_args_include_jinja_and_configured_values() {
+    fn chat_args_default_to_auto_gpu_layers() {
         let cfg = test_config();
-        let args = chat_args(&cfg);
+        let args = chat_args(&cfg, &probe());
         assert!(args.iter().any(|a| a.to_string_lossy() == "--jinja"));
         assert_eq!(arg_value(&args, "-m"), "chat.gguf");
         assert_eq!(arg_value(&args, "--host"), "127.0.0.1");
         assert_eq!(arg_value(&args, "--port"), "18080");
-        assert_eq!(arg_value(&args, "-ngl"), "99");
+        assert_eq!(arg_value(&args, "-ngl"), "auto");
+        assert_eq!(arg_value(&args, "-lv"), "4");
         assert_eq!(arg_value(&args, "-c"), "16384");
         assert_eq!(arg_value(&args, "--api-key"), "k");
         assert!(args.iter().any(|a| a.to_string_lossy() == "--no-warmup"));
+    }
+
+    #[test]
+    fn chat_args_forward_an_explicit_layer_count() {
+        let mut cfg = test_config();
+        cfg.gpu_layers = "0".into();
+        assert_eq!(arg_value(&chat_args(&cfg, &probe()), "-ngl"), "0");
+        cfg.gpu_layers = "nonsense".into();
+        assert_eq!(arg_value(&chat_args(&cfg, &probe()), "-ngl"), "auto");
+    }
+
+    #[test]
+    fn embed_args_request_embeddings_and_gpu_layers() {
+        let args = embed_args(&test_config(), &probe());
+        assert!(args.iter().any(|a| a.to_string_lossy() == "--embeddings"));
+        assert_eq!(arg_value(&args, "--pooling"), "cls");
+        assert_eq!(arg_value(&args, "-ngl"), "auto");
+        assert_eq!(arg_value(&args, "-lv"), "4");
+    }
+
+    #[tokio::test]
+    async fn fresh_engine_reports_unknown_runtime_state() {
+        let engine = LlamaEngine::new(test_config());
+        assert_eq!(engine.chat_info().await.backend, "unknown");
+        assert_eq!(engine.embed_info().await.backend, "unknown");
+        assert!(engine.last_log_lines("chat", 5).await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn stopped_engine_does_not_report_stale_gpu_state() {
+        let engine = LlamaEngine::new(test_config());
+        {
+            let mut probe = engine.chat_probe.lock().await;
+            probe.feed(
+                "llama_prepare_model_devices: using device CUDA0 (RTX 3060) (0000:01:00.0) - 900 MiB free",
+            );
+            probe.feed("load_tensors: offloaded 33/33 layers to GPU");
+        }
+        // There is no child in this unit test: chat_info must clear the probe
+        // instead of returning the previous process's state.
+        assert_eq!(engine.chat_info().await.backend, "unknown");
     }
 
     #[test]

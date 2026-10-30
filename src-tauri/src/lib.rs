@@ -317,12 +317,10 @@ async fn unlock_vault(
             .unwrap_or_else(|| "8081".into())
             .parse()
             .unwrap_or(8081);
-        let ngl: u32 = db::settings::get_setting(&conn, "llama_ngl")
+        let gpu_layers: String = db::settings::get_setting(&conn, "llama_ngl")
             .ok()
             .flatten()
-            .unwrap_or_else(|| "99".into())
-            .parse()
-            .unwrap_or(99);
+            .unwrap_or_else(|| "auto".into());
         let ctx_size: u32 = db::settings::get_setting(&conn, "llama_ctx_size")
             .ok()
             .flatten()
@@ -381,9 +379,10 @@ async fn unlock_vault(
                 embed_model: effective_model_path(&state.models(), &embed_model, true),
                 chat_port,
                 embed_port,
-                ngl,
+                gpu_layers,
                 ctx_size,
                 api_key,
+                log_dir: state.paths.data_dir.join("logs"),
             }));
             state.set_engine(engine);
         }
@@ -2321,7 +2320,7 @@ async fn rebuild_engine(
     state: &tauri::State<'_, AppState>,
 ) -> Result<bool, AppError> {
     let db = state.db()?;
-    let (chat_model, embed_model, chat_port, embed_port, ngl, ctx_size, exe_path, api_key) =
+    let (chat_model, embed_model, chat_port, embed_port, gpu_layers, ctx_size, exe_path, api_key) =
         db::pool::with_conn(db, |conn| {
             let chat_model = db::settings::get_setting(conn, "llama_chat_model")
                 .ok()
@@ -2343,12 +2342,10 @@ async fn rebuild_engine(
                 .unwrap_or_else(|| "8081".into())
                 .parse()
                 .unwrap_or(8081);
-            let ngl: u32 = db::settings::get_setting(conn, "llama_ngl")
+            let gpu_layers: String = db::settings::get_setting(conn, "llama_ngl")
                 .ok()
                 .flatten()
-                .unwrap_or_else(|| "99".into())
-                .parse()
-                .unwrap_or(99);
+                .unwrap_or_else(|| "auto".into());
             let ctx_size: u32 = db::settings::get_setting(conn, "llama_ctx_size")
                 .ok()
                 .flatten()
@@ -2368,7 +2365,7 @@ async fn rebuild_engine(
                 embed_model,
                 chat_port,
                 embed_port,
-                ngl,
+                gpu_layers,
                 ctx_size,
                 exe_path,
                 api_key,
@@ -2388,9 +2385,10 @@ async fn rebuild_engine(
         embed_model: effective_model_path(&state.models(), &embed_model, true),
         chat_port,
         embed_port,
-        ngl,
+        gpu_layers,
         ctx_size,
         api_key,
+        log_dir: state.paths.data_dir.join("logs"),
     }));
     state.set_engine(engine);
     Ok(true)
