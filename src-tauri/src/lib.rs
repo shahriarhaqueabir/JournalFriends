@@ -2134,7 +2134,7 @@ fn bundled_engine_exe(data_dir: &std::path::Path) -> std::path::PathBuf {
 /// Resolve the packaged llama.cpp runtime from Tauri's app resource directory.
 /// The full runtime directory is bundled together so Windows can load the DLLs
 /// adjacent to `llama-server.exe`.
-fn bundled_engine_resource(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+pub(crate) fn bundled_engine_resource(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     let packaged = app
         .path()
         .resolve(

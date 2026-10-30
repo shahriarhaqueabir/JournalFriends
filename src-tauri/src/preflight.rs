@@ -126,8 +126,62 @@ async fn check_database(pool: Arc<pool::DbPool>) -> PreflightCheck {
     }
 }
 
+/// Check 7: the engine binary can enumerate a GPU without loading a model.
+fn gpu_check_from(
+    result: Result<Vec<crate::ai::probe::DeviceInfo>, crate::ai::probe::ProbeError>,
+) -> PreflightCheck {
+    match result {
+        Ok(devices) if !devices.is_empty() => {
+            let d = &devices[0];
+            PreflightCheck::pass(
+                "gpu_offload",
+                "GPU offload",
+                format!(
+                    "{} ({}, {} MiB free) - available for GPU offload",
+                    d.name, d.id, d.free_mib
+                ),
+            )
+        }
+        Ok(_) => PreflightCheck::warn(
+            "gpu_offload",
+            "GPU offload",
+            "No GPU device found - Arnold will run on CPU (slower, still fully offline)."
+                .to_string(),
+        )
+        .with_action(true),
+        Err(e) => PreflightCheck::fail(
+            "gpu_offload",
+            "GPU offload",
+            format!("The engine could not be executed: {}", e),
+        )
+        .with_action(true),
+    }
+}
+
+/// Check 8: the Microsoft Visual C++ runtime the bundled engine imports.
+fn check_msvc_runtime() -> PreflightCheck {
+    if crate::runtime_env::msvc_runtime_present() {
+        PreflightCheck::pass(
+            "msvc_runtime",
+            "Visual C++ runtime",
+            "Microsoft Visual C++ 2015-2022 x64 runtime detected",
+        )
+    } else {
+        PreflightCheck::warn(
+            "msvc_runtime",
+            "Visual C++ runtime",
+            "Missing Microsoft Visual C++ 2015-2022 x64 runtime - the engine cannot start. Install it from https://aka.ms/vs/17/release/vc_redist.x64.exe"
+                .to_string(),
+        )
+        .with_action(true)
+    }
+}
+
 /// Run every preflight check and return the full report.
-pub async fn run_preflight(state: &AppState) -> Result<PreflightReport, AppError> {
+pub async fn run_preflight(
+    app_handle: &tauri::AppHandle,
+    state: &AppState,
+) -> Result<PreflightReport, AppError> {
     let mut checks: Vec<PreflightCheck> = Vec::new();
     let paths = &state.paths;
 
@@ -202,6 +256,37 @@ pub async fn run_preflight(state: &AppState) -> Result<PreflightReport, AppError
                 );
             }
         }
+    }
+
+    // 3b. GPU availability + the VC++ runtime the bundled engine imports.
+    {
+        let resource = crate::bundled_engine_resource(app_handle);
+        // No `?` here: a locked vault must still produce a full report (check 2
+        // already reports it), exactly like `engine_requirements` does.
+        let saved = match state.db() {
+            Ok(pool) => crate::db::pool::with_conn(pool, |conn| {
+                crate::db::settings::get_setting(conn, "llama_exe_path")
+            })
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+            Err(_) => String::new(),
+        };
+        let resolved = crate::resolve_engine_exe(&paths.data_dir, resource.as_deref(), &saved);
+        let result = if resolved.is_empty() {
+            Err(crate::ai::probe::ProbeError(
+                "no llama-server.exe found".into(),
+            ))
+        } else {
+            let probe = crate::ai::probe::default_probe();
+            let exe = std::path::PathBuf::from(resolved);
+            tokio::task::spawn_blocking(move || probe.list_devices(&exe))
+                .await
+                .unwrap_or_else(|e| Err(crate::ai::probe::ProbeError(e.to_string())))
+        };
+        checks.push(gpu_check_from(result));
+        checks.push(check_msvc_runtime());
     }
 
     // 4. Configured model present
@@ -301,6 +386,47 @@ pub async fn run_preflight(state: &AppState) -> Result<PreflightReport, AppError
 }
 
 #[tauri::command]
-pub async fn preflight_run(state: tauri::State<'_, AppState>) -> Result<PreflightReport, AppError> {
-    run_preflight(&state).await
+pub async fn preflight_run(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<PreflightReport, AppError> {
+    run_preflight(&app, &state).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn msvc_check_is_a_warn_or_pass_with_a_message() {
+        let check = check_msvc_runtime();
+        assert_eq!(check.id, "msvc_runtime");
+        assert!(matches!(check.status, CheckStatus::Pass | CheckStatus::Warn));
+        assert!(!check.message.is_empty());
+        if check.status == CheckStatus::Warn {
+            assert!(check.actionable, "a missing runtime needs an action");
+        }
+    }
+
+    #[test]
+    fn gpu_check_reports_the_probe_outcome() {
+        let devices = vec![crate::ai::probe::DeviceInfo {
+            id: "CUDA0".into(),
+            name: "NVIDIA GeForce RTX 3060".into(),
+            total_mib: 12287,
+            free_mib: 11255,
+        }];
+        let check = gpu_check_from(Ok(devices));
+        assert_eq!(check.id, "gpu_offload");
+        assert_eq!(check.status, CheckStatus::Pass);
+        assert!(check.message.contains("RTX 3060"));
+
+        let none = gpu_check_from(Ok(Vec::new()));
+        assert_eq!(none.status, CheckStatus::Warn);
+        assert!(none.actionable);
+
+        let broken = gpu_check_from(Err(crate::ai::probe::ProbeError("os error 126".into())));
+        assert_eq!(broken.status, CheckStatus::Fail);
+        assert!(broken.message.contains("126"));
+    }
 }
