@@ -155,3 +155,4 @@ CHANGELOG.md
 /tools/*
 !/tools/js-checks/
 !/tools/*.ps1
+*.err
