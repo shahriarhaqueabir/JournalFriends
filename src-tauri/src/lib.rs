@@ -428,6 +428,25 @@ async fn unlock_vault(
     // call stays for the already-unlocked/fresh path.
     let prov_handle = handle.clone();
     tauri::async_runtime::spawn(async move {
+        let state = prov_handle.state::<AppState>();
+        let db = match state.db() {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        let enabled = db::pool::with_conn(db, |conn| {
+            db::settings::get_setting(conn, "ai_enabled")
+        })
+        .await
+        .ok()
+        .flatten()
+        .map(|v| v.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+        if !enabled {
+            tracing::info!(target: "provision", "AI disabled (ai_enabled=false); skipping provisioning");
+            return;
+        }
+
         let outcome = crate::provision::provision_model(&prov_handle).await;
         tracing::info!(target: "provision", outcome = %outcome.summary(), "provisioning after vault unlock");
     });
@@ -3002,6 +3021,34 @@ async fn setting_set(
 }
 
 #[tauri::command]
+async fn ai_enabled_get(state: tauri::State<'_, AppState>) -> Result<bool, AppError> {
+    let db = state.db()?;
+    let val = db::pool::with_conn(db, |conn| db::settings::get_setting(conn, "ai_enabled")).await?;
+    Ok(val.unwrap_or_else(|| "false".to_string()).trim().eq_ignore_ascii_case("true"))
+}
+
+#[tauri::command]
+async fn ai_enabled_set(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    enabled: bool,
+) -> Result<(), AppError> {
+    let value = if enabled { "true" } else { "false" }.to_string();
+    let db = state.db()?;
+    db::pool::with_conn(db, move |conn| db::settings::set_setting(conn, "ai_enabled", &value)).await?;
+    crate::events::emit(
+        &app,
+        crate::events::AppEvent::LogEvent {
+            timestamp: Utc::now().to_rfc3339(),
+            level: "info".to_string(),
+            source: "settings".to_string(),
+            message: format!("setting 'ai_enabled' updated"),
+        },
+    );
+    Ok(())
+}
+
+#[tauri::command]
 async fn background_read_image(path: String) -> Result<String, AppError> {
     let bytes = std::fs::read(&path).map_err(AppError::from)?;
     let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
@@ -3366,6 +3413,22 @@ pub fn run() {
             {
                 let setup_handle = handle.clone();
                 tauri::async_runtime::spawn(async move {
+                    let state = setup_handle.state::<AppState>();
+                    let enabled = match state.db() {
+                        Ok(db) => db::pool::with_conn(db, |conn| {
+                            db::settings::get_setting(conn, "ai_enabled")
+                        })
+                        .await
+                        .ok()
+                        .flatten()
+                        .map(|v| v.trim().eq_ignore_ascii_case("true"))
+                        .unwrap_or(false),
+                        Err(_) => false,
+                    };
+                    if !enabled {
+                        tracing::info!(target: "ai_provision", "AI disabled or vault locked; skipping startup provisioning");
+                        return;
+                    }
                     let outcome = crate::provision::provision_model(&setup_handle).await;
                     tracing::info!(
                         target: "ai_provision",
@@ -3722,6 +3785,8 @@ pub fn run() {
             get_engine_status,
             setting_get,
             setting_set,
+            ai_enabled_get,
+            ai_enabled_set,
             background_read_image,
             diagnostics::engine_http_log,
             diagnostics::log_tail,

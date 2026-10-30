@@ -17,6 +17,7 @@ pub fn seed_defaults(conn: &Connection) -> Result<(), AppError> {
         ("llama_ctx_size", "16384"),
         ("ai_voice", ""),
         ("llama_api_key", ""),
+        ("ai_enabled", "false"),
     ];
 
     for (key, value) in defaults {
