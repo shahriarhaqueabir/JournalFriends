@@ -2271,11 +2271,16 @@ struct EngineRuntimeSnapshot {
 async fn engine_runtime_info(
     state: tauri::State<'_, AppState>,
 ) -> Result<EngineRuntimeSnapshot, AppError> {
-    let engine = state.engine()?;
-    Ok(EngineRuntimeSnapshot {
-        chat: engine.chat_info().await,
-        embed: engine.embed_info().await,
-    })
+    match state.engine() {
+        Ok(engine) => Ok(EngineRuntimeSnapshot {
+            chat: engine.chat_info().await,
+            embed: engine.embed_info().await,
+        }),
+        Err(_) => Ok(EngineRuntimeSnapshot {
+            chat: crate::ai::probe::EngineRuntimeInfo::default(),
+            embed: crate::ai::probe::EngineRuntimeInfo::default(),
+        }),
+    }
 }
 
 /// Everything the requirements table shows: engine label, accelerators,
@@ -3977,6 +3982,7 @@ mod wire_tests {
         for key in ["service", "reaped", "note"] {
             assert!(v.get(key).is_some(), "missing wire key: {key}");
         }
+        assert!(v.get("reapedPid").is_none(), "camelCase leak on wire");
     }
 
     #[test]

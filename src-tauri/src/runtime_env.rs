@@ -10,9 +10,17 @@
 pub fn msvc_runtime_present() -> bool {
     #[link(name = "kernel32")]
     extern "system" {
-        fn LoadLibraryW(name: *const u16) -> *mut core::ffi::c_void;
+        fn LoadLibraryExW(
+            name: *const u16,
+            file: *mut core::ffi::c_void,
+            flags: u32,
+        ) -> *mut core::ffi::c_void;
         fn FreeLibrary(module: *mut core::ffi::c_void) -> i32;
     }
+
+    // Restrict resolution to System32 so a stray DLL in the app/CWD can't
+    // hijack the probe and the result reflects the system-installed redist.
+    const LOAD_LIBRARY_SEARCH_SYSTEM32: u32 = 0x0000_0800;
 
     fn loads(dll: &str) -> bool {
         let mut wide: Vec<u16> = dll.encode_utf16().collect();
@@ -20,7 +28,11 @@ pub fn msvc_runtime_present() -> bool {
         // SAFETY: `wide` is a NUL-terminated UTF-16 buffer that outlives the
         // call; a null handle is checked before FreeLibrary.
         unsafe {
-            let handle = LoadLibraryW(wide.as_ptr());
+            let handle = LoadLibraryExW(
+                wide.as_ptr(),
+                std::ptr::null_mut(),
+                LOAD_LIBRARY_SEARCH_SYSTEM32,
+            );
             if handle.is_null() {
                 return false;
             }

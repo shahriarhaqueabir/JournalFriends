@@ -60,7 +60,7 @@ where
         let mut lines = BufReader::new(stream).lines();
         while let Some(result) = lines.next_line().await.transpose() {
             match result {
-                Ok(raw) => {}
+                Ok(_raw) => {}
                 Err(e) => {
                     tracing::warn!(target: "ai::engine_log", error = %e, "stdout drain read error");
                     break;
