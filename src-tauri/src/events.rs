@@ -70,6 +70,12 @@ pub enum AppEvent {
         service: String,
         reason: String,
     },
+    /// Engine-neutral GPU/offload state after an engine lifecycle change.
+    #[allow(dead_code)]
+    EngineRuntimeStatus {
+        chat: crate::ai::probe::EngineRuntimeInfo,
+        embed: crate::ai::probe::EngineRuntimeInfo,
+    },
     #[allow(dead_code)]
     LlamaModelImported {
         model_type: String,

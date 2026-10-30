@@ -167,6 +167,9 @@ pub async fn provision_model(app: &AppHandle) -> ProvisionOutcome {
     // Start servers (idempotent — start_* returns Ok(()) if already running).
     if let Err(e) = engine.start_chat().await {
         let reason = format!("Failed to start chat server: {}", e);
+        for line in engine.last_log_lines("chat", 20).await {
+            tracing::error!(target: "provision", "chat: {}", line);
+        }
         emit(
             app,
             AppEvent::LlamaEngineFailed {
@@ -177,6 +180,9 @@ pub async fn provision_model(app: &AppHandle) -> ProvisionOutcome {
         return ProvisionOutcome::Unavailable { reason };
     }
     if let Err(e) = engine.start_embed().await {
+        for line in engine.last_log_lines("embed", 20).await {
+            tracing::error!(target: "provision", "embed: {}", line);
+        }
         let reason = embed_start_failure_reason(state.llama().ok().as_ref(), e).await;
         emit(
             app,
@@ -245,6 +251,14 @@ pub async fn provision_model(app: &AppHandle) -> ProvisionOutcome {
         );
         return ProvisionOutcome::Unavailable { reason };
     }
+
+    emit(
+        app,
+        AppEvent::EngineRuntimeStatus {
+            chat: engine.chat_info().await,
+            embed: engine.embed_info().await,
+        },
+    );
 
     if !chat_ok {
         let reason = "Chat server did not become healthy within 15s".to_string();

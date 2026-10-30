@@ -8,12 +8,14 @@ mod logger;
 mod paths;
 mod preflight;
 mod provision;
+mod runtime_env;
 mod scheduler;
 
 use chrono::Utc;
 use error::AppError;
 use rusqlite::params;
 use serde::Serialize;
+use ai::probe::EngineProbe as _;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tauri::{Listener, Manager};
@@ -2257,7 +2259,84 @@ async fn engine_path_info(
     })
 }
 
-/// Resolve the model file for a role (chat/embed).
+/// Live GPU/offload state for both services (D-148: snake_case keys).
+#[derive(Debug, Serialize)]
+struct EngineRuntimeSnapshot {
+    chat: ai::probe::EngineRuntimeInfo,
+    embed: ai::probe::EngineRuntimeInfo,
+}
+
+/// Report what the running engine is actually doing: GPU, partial, or CPU.
+#[tauri::command]
+async fn engine_runtime_info(
+    state: tauri::State<'_, AppState>,
+) -> Result<EngineRuntimeSnapshot, AppError> {
+    let engine = state.engine()?;
+    Ok(EngineRuntimeSnapshot {
+        chat: engine.chat_info().await,
+        embed: engine.embed_info().await,
+    })
+}
+
+/// Everything the requirements table shows: engine label, accelerators,
+/// MSVC runtime presence, and the two user-supplied model files.
+#[derive(Debug, Serialize)]
+struct RequirementsReport {
+    engine: String,
+    devices: Vec<ai::probe::DeviceInfo>,
+    msvc_runtime: bool,
+    chat_model: String,
+    embed_model: String,
+}
+
+/// Requirements disclosure for onboarding and System. Works with a locked
+/// vault: model names simply come back empty.
+#[tauri::command]
+async fn engine_requirements(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<RequirementsReport, AppError> {
+    let (saved_exe, chat_model, embed_model) = match state.db() {
+        Ok(pool) => db::pool::with_conn(pool, |conn| {
+            Ok::<_, AppError>((
+                db::settings::get_setting(conn, "llama_exe_path")?.unwrap_or_default(),
+                db::settings::get_setting(conn, "llama_chat_model")?.unwrap_or_default(),
+                db::settings::get_setting(conn, "llama_embed_model")?.unwrap_or_default(),
+            ))
+        })
+        .await
+        .unwrap_or_default(),
+        Err(_) => (String::new(), String::new(), String::new()),
+    };
+
+    let probe = ai::probe::default_probe();
+    let engine_label = probe.engine_label().to_string();
+    let resource = bundled_engine_resource(&app);
+    let resolved = resolve_engine_exe(&state.paths.data_dir, resource.as_deref(), &saved_exe);
+
+    let devices = if resolved.is_empty() {
+        Vec::new()
+    } else {
+        let exe = std::path::PathBuf::from(resolved);
+        match tokio::task::spawn_blocking(move || probe.list_devices(&exe)).await {
+            Ok(Ok(devices)) => devices,
+            Ok(Err(e)) => {
+                tracing::warn!(target: "engine", error = %e, "device listing failed");
+                Vec::new()
+            }
+            Err(_) => Vec::new(),
+        }
+    };
+
+    Ok(RequirementsReport {
+        engine: engine_label,
+        devices,
+        msvc_runtime: runtime_env::msvc_runtime_present(),
+        chat_model,
+        embed_model,
+    })
+}
+
 ///
 /// Priority: the saved `llama_chat_model`/`llama_embed_model` setting when the
 /// file still exists in the store; otherwise auto-detect from the bundled
@@ -2511,6 +2590,13 @@ async fn restart_engine(
             service: service.clone(),
         },
     );
+    crate::events::emit(
+        &app,
+        crate::events::AppEvent::EngineRuntimeStatus {
+            chat: engine.chat_info().await,
+            embed: engine.embed_info().await,
+        },
+    );
     Ok(EngineActionOutcome {
         reaped: reaped_owner(&clearance),
         note: action_note("restarted", &service, &clearance),
@@ -2547,6 +2633,13 @@ async fn stop_engine(
         &app,
         crate::events::AppEvent::LlamaEngineStopped {
             service: service.clone(),
+        },
+    );
+    crate::events::emit(
+        &app,
+        crate::events::AppEvent::EngineRuntimeStatus {
+            chat: engine.chat_info().await,
+            embed: engine.embed_info().await,
         },
     );
     Ok(EngineActionOutcome {
@@ -3603,6 +3696,8 @@ pub fn run() {
             import_model,
             check_engine_health,
             engine_path_info,
+            engine_runtime_info,
+            engine_requirements,
             restart_engine,
             stop_engine,
             engine_port_info,
@@ -3882,7 +3977,49 @@ mod wire_tests {
         for key in ["service", "reaped", "note"] {
             assert!(v.get(key).is_some(), "missing wire key: {key}");
         }
-        assert!(v.get("reapedPid").is_none(), "camelCase leak on wire");
+    }
+
+    #[test]
+    fn engine_runtime_info_serializes_snake_case_wire_keys() {
+        let snapshot = EngineRuntimeSnapshot {
+            chat: crate::ai::probe::EngineRuntimeInfo::default(),
+            embed: crate::ai::probe::EngineRuntimeInfo::default(),
+        };
+        let v = serde_json::to_value(&snapshot).expect("must serialize");
+        for key in ["chat", "embed"] {
+            assert!(v.get(key).is_some(), "missing wire key: {key}");
+        }
+        for key in [
+            "engine",
+            "backend",
+            "device",
+            "device_name",
+            "layers_offloaded",
+            "layers_total",
+            "model_mib",
+            "kv_mib",
+            "vram_total_mib",
+            "vram_free_mib",
+        ] {
+            assert!(v["chat"].get(key).is_some(), "missing nested key: {key}");
+        }
+        assert!(v["chat"].get("layersOffloaded").is_none(), "camelCase leak");
+    }
+
+    #[test]
+    fn requirements_report_serializes_snake_case_wire_keys() {
+        let report = RequirementsReport {
+            engine: "llama.cpp".into(),
+            devices: Vec::new(),
+            msvc_runtime: true,
+            chat_model: "m.gguf".into(),
+            embed_model: String::new(),
+        };
+        let v = serde_json::to_value(&report).expect("must serialize");
+        for key in ["engine", "devices", "msvc_runtime", "chat_model", "embed_model"] {
+            assert!(v.get(key).is_some(), "missing wire key: {key}");
+        }
+        assert!(v.get("msvcRuntime").is_none(), "camelCase leak");
     }
 }
 

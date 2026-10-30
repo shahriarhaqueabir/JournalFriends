@@ -13,7 +13,7 @@ pub fn seed_defaults(conn: &Connection) -> Result<(), AppError> {
         ("llama_embed_model", ""),
         ("llama_chat_port", "8080"),
         ("llama_embed_port", "8081"),
-        ("llama_ngl", "99"),
+        ("llama_ngl", "auto"),
         ("llama_ctx_size", "16384"),
         ("ai_voice", ""),
         ("llama_api_key", ""),
