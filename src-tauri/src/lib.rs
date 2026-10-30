@@ -443,7 +443,7 @@ async fn unlock_vault(
         .unwrap_or(false);
 
         if !enabled {
-            tracing::info!(target: "provision", "AI disabled (ai_enabled=false); skipping provisioning");
+            tracing::info!(target: "provision", "AI disabled or setting unreadable; skipping provisioning");
             return;
         }
 
@@ -3045,6 +3045,14 @@ async fn ai_enabled_set(
             message: format!("setting 'ai_enabled' updated"),
         },
     );
+    // Enabling AI provisions the engine so the user doesn't have to restart.
+    if enabled {
+        let prov_handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let outcome = crate::provision::provision_model(&prov_handle).await;
+            tracing::info!(target: "provision", "ai_enabled toggle provisioning: {}", outcome.summary());
+        });
+    }
     Ok(())
 }
 
