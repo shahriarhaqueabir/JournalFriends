@@ -1,4 +1,4 @@
-# 🎨 Arnold — Offline-First Desktop Productivity
+# 🎨 Helga — A Personal Desktop Diary
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tauri Version](https://img.shields.io/badge/Tauri-v2-blue.svg)](https://v2.tauri.app/)
