@@ -1,6 +1,7 @@
 import { invoke } from "../ipc.js";
 import { getDiagnosticsSnapshot, recordDiagnostic } from "../diagnostics.js";
 import { escapeHtml } from "../sanitize.js";
+import { inlineStatus } from "../engine-status.js";
 import { showToast, showError, stringifyError } from "../notifications.js";
 import { initSettingsDiagnostics } from "./settings-diagnostics.js";
 
@@ -363,6 +364,7 @@ async function initLLMEngineSection() {
   const exePath = document.getElementById("llama-exe-path");
   const exeHint = document.getElementById("llama-exe-hint");
   const ngl = document.getElementById("llama-ngl");
+  const nglStatus = document.getElementById("llama-ngl-status");
   const ctxSize = document.getElementById("llama-ctx-size");
   if (!chatSelect || !embedSelect) return;
 
@@ -402,6 +404,18 @@ async function initLLMEngineSection() {
     }
   }
 
+  // Tell the user what the engine is actually doing. Read-only: it never
+  // changes a setting, and a locked vault or stopped engine is not an error.
+  async function refreshGpuStatus() {
+    if (!nglStatus) return;
+    try {
+      const info = await invoke("engine_runtime_info", {}, { silent: true });
+      nglStatus.textContent = `Current: ${inlineStatus(info.chat)}`;
+    } catch (e) {
+      nglStatus.textContent = "Current: engine not running";
+    }
+  }
+
   async function loadSettings() {
     try {
       const [
@@ -428,9 +442,10 @@ async function initLLMEngineSection() {
         exePath.value = savedExe || "";
         exePath.placeholder = "";
       }
-      if (ngl) ngl.value = savedNgl || "99";
+      if (ngl) ngl.value = savedNgl || "auto";
       if (ctxSize) ctxSize.value = savedCtx || "16384";
       await refreshModelList();
+      await refreshGpuStatus();
     } catch (e) {
       console.error("[LLM ENGINE] loadSettings failed", e);
     }
@@ -563,9 +578,11 @@ async function initLLMEngineSection() {
         { variant: "success" },
       );
       await updateEngineStatus();
+      await refreshGpuStatus();
     } catch (e) {
       showError(e, { title: `Failed to restart ${service}` });
       await updateEngineStatus();
+      await refreshGpuStatus();
     }
   }
 
@@ -585,7 +602,15 @@ async function initLLMEngineSection() {
     persist("llama_exe_path", exePath.value);
     await refreshEnginePathHint();
   });
-  ngl.addEventListener("change", () => persist("llama_ngl", ngl.value));
+  ngl.addEventListener("change", () => {
+    const value = ngl.value.trim().toLowerCase() || "auto";
+    ngl.value = value;
+    if (!ngl.checkValidity()) {
+      ngl.reportValidity();
+      return;
+    }
+    persist("llama_ngl", value);
+  });
   ctxSize.addEventListener("change", () =>
     persist("llama_ctx_size", ctxSize.value),
   );
@@ -595,7 +620,10 @@ async function initLLMEngineSection() {
   await refreshEnginePathHint();
   await updateEngineStatus();
   // Re-probe status periodically so the card tracks engine state.
-  setInterval(updateEngineStatus, 30000);
+  setInterval(() => {
+    updateEngineStatus();
+    refreshGpuStatus();
+  }, 30000);
 }
 
 // ── Appearance: custom background image ───────────────────────
