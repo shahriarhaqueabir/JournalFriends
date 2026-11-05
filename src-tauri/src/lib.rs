@@ -11,7 +11,6 @@ mod provision;
 mod runtime_env;
 mod scheduler;
 
-use ai::probe::EngineProbe as _;
 use chrono::Utc;
 use error::AppError;
 use rusqlite::params;
@@ -433,14 +432,12 @@ async fn unlock_vault(
             Ok(d) => d,
             Err(_) => return,
         };
-        let enabled = db::pool::with_conn(db, |conn| {
-            db::settings::get_setting(conn, "ai_enabled")
-        })
-        .await
-        .ok()
-        .flatten()
-        .map(|v| v.trim().eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
+        let enabled = db::pool::with_conn(db, |conn| db::settings::get_setting(conn, "ai_enabled"))
+            .await
+            .ok()
+            .flatten()
+            .map(|v| v.trim().eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
 
         if !enabled {
             tracing::info!(target: "provision", "AI disabled or setting unreadable; skipping provisioning");
@@ -3024,7 +3021,10 @@ async fn setting_set(
 async fn ai_enabled_get(state: tauri::State<'_, AppState>) -> Result<bool, AppError> {
     let db = state.db()?;
     let val = db::pool::with_conn(db, |conn| db::settings::get_setting(conn, "ai_enabled")).await?;
-    Ok(val.unwrap_or_else(|| "false".to_string()).trim().eq_ignore_ascii_case("true"))
+    Ok(val
+        .unwrap_or_else(|| "false".to_string())
+        .trim()
+        .eq_ignore_ascii_case("true"))
 }
 
 #[tauri::command]
@@ -3035,7 +3035,10 @@ async fn ai_enabled_set(
 ) -> Result<(), AppError> {
     let value = if enabled { "true" } else { "false" }.to_string();
     let db = state.db()?;
-    db::pool::with_conn(db, move |conn| db::settings::set_setting(conn, "ai_enabled", &value)).await?;
+    db::pool::with_conn(db, move |conn| {
+        db::settings::set_setting(conn, "ai_enabled", &value)
+    })
+    .await?;
     crate::events::emit(
         &app,
         crate::events::AppEvent::LogEvent {
