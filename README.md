@@ -1,107 +1,204 @@
-# 🎨 Helga — A Personal Desktop Diary
+# Arnold 🎨 — Personal Desktop Diary
 
+> **Private, offline-first Windows desktop app** combining a plain-text journal, a
+> full task manager, and a local AI assistant powered by **llama.cpp**. Everything
+> runs on your machine — no cloud, no subscriptions, no data leaves. 🛡️
+
+[![CI](https://github.com/shahriarhaqueabir/arnold/actions/workflows/quality.yml/badge.svg)](https://github.com/shahriarhaqueabir/arnold/actions/workflows/quality.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tauri Version](https://img.shields.io/badge/Tauri-v2-blue.svg)](https://v2.tauri.app/)
 [![Rust Version](https://img.shields.io/badge/Rust-1.77%2B-orange.svg)](https://www.rust-lang.org/)
 ![AI Engine: llama.cpp](https://img.shields.io/badge/AI_Engine-llama.cpp-green.svg)
 
-**Arnold** is a private, offline-first Windows desktop application built with **Tauri v2**. It seamlessly combines a plain-text journal, a full task manager, and a local AI assistant powered by a local **llama.cpp** engine using OpenAI-compatible HTTP on ports 8080/8081, allowing for secure, local processing of your personal data.
+---
+
+## 🎬 The story — why this exists
+
+Most journaling and task apps are cloud-first: your private thoughts live on
+someone else's server, behind a subscription, and break the moment Wi-Fi drops.
+Arnold inverts that. It is a **single SQLite file on your machine** plus a
+local llama.cpp engine that reads your journal, extracts tasks, and answers
+questions — with zero network calls. The goal: a diary that is _yours_, that
+works offline, and that quietly turns writing into action. 📓✨
+
+> 💡 **The one sentence that drove everything:** _Your thoughts stay on your
+> machine, and the AI works for you, not for a vendor._
 
 ---
 
-## 📸 Showcase
+## 🔁 The feedback loop (zero → finished)
 
-> *Screenshots coming soon — including the AI Thinking Partner sidebar, Journal Analysis pipeline, and the new Future Awareness schedule view.*
-
----
-
-## 🚀 Key Features
-
-- **Private by Design**: All data stays on your machine in a single SQLite file.
-- **Journal-to-Task Pipeline**: Background AI analysis extracts actionable tasks from your journal entries.
-- **Local AI**: Powered by local **llama.cpp** (no internet, no subscriptions).
-- **Task Management**: Full kanban/list views with subtasks and recurring reminders.
-- **Offline-First**: Zero dependencies on cloud services or external APIs (except the local llama.cpp engine).
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| **Desktop Shell** | [Tauri v2](https://v2.tauri.app/) |
-| **Backend** | [Rust](https://www.rust-lang.org/) (Stable 1.77+, MSVC toolchain) |
-| **Frontend** | Vanilla HTML5, CSS3 (Modern Grid), JS (ES2022) |
-| **AI Engine** | llama.cpp (local, chat :8080 + embed :8081) |
-| **Database** | SQLite via [rusqlite](https://github.com/rusqlite/rusqlite) (bundled-full) |
-| **Frontend Libs** | Chart.js 4.x, SortableJS, Floating UI, Lucide Icons (all vendored locally; no CDN) |
-| **Async Runtime** | Tokio |
-
----
-
-## 📦 Getting Started
-
-### Requirements
-
-| Requirement | Needed for | Notes |
-| --- | --- | --- |
-| **Windows 10/11** | Runtime | WebView2 runtime is required to render the UI. The installer bundles Microsoft's **offline** WebView2 installer (`webviewInstallMode: offlineInstaller`), so setup never downloads anything. |
-| **llama-server (llama.cpp)** | Runtime (AI) | Windows release bundles include the llama-server runtime and its DLLs. The app manages its lifecycle (start/stop/health); `llama_exe_path` remains available as an override. |
-| **AI models** | Runtime (AI) | Two local GGUF files, selected manually — nothing is downloaded. The chat role takes **any instruct-tuned GGUF** (Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M recommended - the model the prompts and tools are tuned against); it handles chat, journal analysis, and tools. Embedding models are rejected here. The embedding role is only used to index and semantically retrieve journal entries (**`nomic-embed-text-v2-moe`** recommended). Files are copied into `<app directory>/data/models/chat/` and `models/embed/`. |
-| **Rust 1.77+ (MSVC)** | Building only | Not required for end users — only to build from source. Install via [rustup.rs](https://rustup.rs/), plus the [Tauri v2 Windows prerequisites](https://v2.tauri.app/start/prerequisites/) (WebView2 SDK, MSVC Build Tools). |
-
-### Initializing the AI
-
-Windows release bundles include the llama-server runtime. From source, stage the complete `llama-b10952-bin-win-cuda-x64` runtime folder at the repository root before `cargo tauri build`; the folder is ignored by Git and must be supplied to each build workspace. Choose the chat and embedding GGUFs manually through the first-run wizard or Settings → LLM Engine (file pickers only — there is no download action). Provisioning starts both local services without internet access.
-
-**Model roles:** the chat role accepts any instruct-tuned GGUF (Qwythos recommended, embedding models rejected). The embedding GGUF (Nomic recommended) is reserved for semantic journal search and vector indexing; it is never used for chat or analysis.
-
-**No external networking:** the AI has no URL-fetch, web-search, or download tool, and the app makes no outbound requests. All HTTP is loopback to the app-managed llama.cpp servers, and the UI's Content-Security-Policy allows no remote origins.
-
-The app runs one chat service and one embedding service. The System tab's Models cell is an inventory by import folder, not the active selection; the active chat and embedding models are selected separately in Settings. A GGUF can appear in both inventory roles if imported into both folders.
-
-### Data Location
-
-By default, the database, logs, models, backups, exports, and attachments live under `<directory containing the app executable>/data/`. `ARNOLD_DATA_DIR` overrides this for tests or custom setups. Existing `%APPDATA%/Arnold` data is not migrated or deleted; the app starts a fresh local vault when the new data directory is empty.
-
-Paths follow the executable's actual install location. The NSIS `currentUser` installer places the app under `%LOCALAPPDATA%`, so its adjacent data folder is still under the user profile. To keep data outside the profile, place the app in a writable non-user directory; installing under protected `Program Files` is not writable for normal users without additional installer permissions.
-
-### Portable Bundle
-
-After staging the llama.cpp runtime folder and running `cargo tauri build`, run `powershell -ExecutionPolicy Bypass -File bundle-portable.ps1`. This creates `src-tauri/target/release/bundle/portable/Arnold-<version>-portable.zip`, containing the app, its library DLL, and bundled engine runtime. Extract the complete folder to a writable non-user location; the app creates its `data/` directory on first launch.
-
-### Running the App
-
-```bash
-# Clone the repository
-git clone https://github.com/shahriarhaqueabir/arnold.git
-cd arnold
-
-# Run in development mode
-cargo tauri dev
+```
+  1. 📝 JOURNAL    write a plain-text entry
+  2. 🔍 ANALYZE    local AI extracts actionable tasks (background)
+  3. 📥 INBOX      proposals land in the Review Inbox
+  4. 👀 REVIEW     human accepts/rejects each proposal
+  5. ✅ COMMIT     accepted items become tasks/events/notes
+  6. 📓 AUDIT      every mutation tracked locally
+  7. 🔁 REPEAT     next entry, next day
 ```
 
----
-
-## 🏗️ Project Structure
-
-- `src-tauri/`: Rust backend, database migrations, and AI orchestrator.
-- `src/`: Vanilla JS frontend, layout grid, and UI components.
-- `AgentDocs/`: Detailed system specifications and architectural blueprints.
-- `data/`: Local database storage (created on first run).
+> 🧠 **Secret of the loop:** the AI _never writes directly_. Every change is a
+> proposal you accept. That single rule is what makes "local AI" trustworthy.
 
 ---
 
-## 🔒 Security & Privacy
+## 🏗️ Architecture — how the pieces talk
 
-- **No Cloud**: There is no "account" and no "sync." Your data is yours.
-- **Offline by construction**: no web-search, URL-fetch, or model-download tool exists; the only HTTP traffic is loopback to the local llama.cpp servers.
-- **Local Analytics**: AI processing happens entirely on your CPU/GPU via llama.cpp.
-- **Confirmation-gated writes**: every AI change to a task, event, note, or memory is a proposal the user accepts in the Review Inbox; the AI never writes directly.
-- **Audit Logs**: All database mutations are tracked locally for your review.
+```mermaid
+flowchart LR
+  UI[🖥️ WebView2 UI] -- invoke --> R[🦀 Rust backend]
+  R --> DB[(🗄️ SQLite rusqlite)]
+  R --> AI[🤖 llama.cpp :8080 chat / :8081 embed]
+  AI --> R
+  R --> UI
+  subgraph Data
+    DB
+  end
+  subgraph Privacy
+    P[🔒 no outbound HTTP]
+  end
+```
+
+| Component        | Responsibility                      | Key location                   |
+| ---------------- | ----------------------------------- | ------------------------------ |
+| 🖥️ Desktop shell | Tauri v2 window + WebView2          | `src-tauri/`                   |
+| 🦀 Backend       | DB, AI orchestrator, migrations     | `src-tauri/src/`               |
+| 🎨 Frontend      | Vanilla HTML/CSS/JS, charts, kanban | `src/`                         |
+| 🗄️ Database      | SQLite (bundled-full)               | `data/` (created on first run) |
+| 🤖 AI engine     | llama.cpp chat + embed services     | managed by app                 |
+
+See `AgentDocs/` for detailed specs and blueprints.
 
 ---
+
+## 🏆 Good choices (and why they were good)
+
+1. **🔒 Private by construction.** Single SQLite file, no account, no sync.
+   Nothing leaves the machine.
+2. **🤖 Local AI with confirmation-gated writes.** The AI proposes; you
+   accept in the Review Inbox. It never mutates data directly.
+3. **📦 Offline installer.** WebView2 is bundled offline; setup never
+   downloads anything.
+4. **🧩 Two model roles, clearly separated.** Chat role (instruct GGUF) for
+   chat/analysis/tools; embedding role (Nomic) only for semantic search. An
+   embedding model is rejected in the chat slot.
+5. **📁 Data next to the executable.** `<app dir>/data/` holds DB, logs,
+   models, backups. `ARNOLD_DATA_DIR` overrides for tests. No hidden
+   `%APPDATA%` surprises.
+6. **🛡️ No outbound networking.** No URL-fetch, web-search, or download tool
+   exists. CSP allows no remote origins.
+7. **📋 Vendored frontend libs.** Chart.js, SortableJS, Floating UI, Lucide
+   are local — no CDN, no supply-chain drift.
+
+---
+
+## 📋 The playbook — recreate from zero
+
+### Phase 0 — Scope 🎯
+
+1. One sentence: _"Your thoughts stay on your machine."_
+2. Boundaries: no cloud, no account, no direct AI writes, offline-first.
+
+### Phase 1 — Skeleton 🦴
+
+3. `cargo tauri init`, Rust 1.77+ MSVC, Tauri v2.
+4. Vanilla frontend (no framework) + SQLite via rusqlite (bundled-full).
+5. Tokio async runtime.
+
+### Phase 2 — Data layer 🗄️
+
+6. Migrations in `src-tauri/`. DB lives next to executable.
+7. Audit log table for all mutations.
+
+### Phase 3 — AI layer 🤖
+
+8. Bundle llama-server runtime. Manage lifecycle (start/stop/health).
+9. Two services: chat :8080, embed :8081. OpenAI-compatible HTTP.
+10. Confirmation-gated proposal flow → Review Inbox.
+
+### Phase 4 — Journal → Task pipeline 📓
+
+11. Background analysis extracts tasks from entries.
+12. Proposals → accept/reject → tasks/events/notes.
+
+### Phase 5 — Task manager ✅
+
+13. Kanban + list views, subtasks, recurring reminders.
+
+### Phase 6 — Ship 🚢
+
+14. `cargo tauri build`, then `bundle-portable.ps1` for portable zip.
+15. Data under `<app dir>/data/` on first launch.
+
+---
+
+## ⚠️ Mistakes to avoid
+
+- 🚫 **Staging the llama.cpp runtime in git.** It's ignored; supply it per
+  build workspace.
+- 🚫 **Mixing model roles.** Embedding models rejected in chat slot — enforce
+  at selection time.
+- 🚫 **Hidden data dirs.** Keep data next to the executable; document
+  `ARNOLD_DATA_DIR` for tests.
+- 🚫 **Direct AI writes.** Always propose → review → accept.
+- 🚫 **Assuming WebView2 is present.** Bundle the offline installer.
+
+---
+
+## 🧰 Stack
+
+| Layer            | Technology                     | Why                          |
+| ---------------- | ------------------------------ | ---------------------------- |
+| 🖥️ Desktop shell | Tauri v2                       | Native window, small binary  |
+| 🦀 Backend       | Rust 1.77+ (MSVC)              | Memory safety, single binary |
+| 🎨 Frontend      | Vanilla HTML/CSS/JS (ES2022)   | No framework bloat           |
+| 🤖 AI engine     | llama.cpp (chat + embed)       | Fully local, no cloud        |
+| 🗄️ Database      | SQLite (rusqlite bundled-full) | Single file, portable        |
+| ⚡ Async         | Tokio                          | Concurrent AI + DB           |
+| 📊 Charts        | Chart.js 4.x (vendored)        | No CDN                       |
+
+## 🚀 Getting started
+
+```bash
+# Run in development
+cargo tauri dev
+
+# Build
+cargo tauri build
+powershell -ExecutionPolicy Bypass -File bundle-portable.ps1
+```
+
+## 📁 Project structure
+
+- `src-tauri/` — Rust backend, migrations, AI orchestrator
+- `src/` — Vanilla JS frontend, layout, components
+- `AgentDocs/` — system specs and blueprints
+- `data/` — local database storage (created on first run)
+
+## 🔒 Security & privacy
+
+- No cloud, no account, no sync.
+- Offline by construction: no web-search, URL-fetch, or download tool.
+- Confirmation-gated writes: AI proposes, human accepts.
+- Audit logs for all mutations.
+- No outbound HTTP except loopback to local llama.cpp.
+
+## 📸 Screenshots
+
+| View 1 | View 2 | View 3 |
+|---|---|---|
+| ![screenshot 1](docs/screenshots/1.png) | ![screenshot 2](docs/screenshots/2.png) | ![screenshot 3](docs/screenshots/3.png) |
+
+> Add your own screenshots under docs/screenshots/.
+
+## 📌 TL;DR
+
+- **Problem:** cloud-dependent, subscription-based journals that leak private thoughts.
+- **Solution:** Tauri v2 desktop diary with local SQLite + llama.cpp AI, confirmation-gated writes.
+- **Why it is interesting:** shows how to build a trustworthy local AI app where the model proposes and the human decides.
+
 
 ## 📜 License
 
-MIT License - Copyright (c) 2026 Arnold.
+MIT License — Copyright (c) 2026 Arnold.

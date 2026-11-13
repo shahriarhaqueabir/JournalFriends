@@ -47,7 +47,7 @@ Any active control changes apply on the next chat turn (sent once a "Save" butto
 
 ### 5.1 Identity
 
-- **AI voice** (new, `app_settings` key `ai_voice`): free-text field ("How should Hawkward AI sound? Tone, formality, coaching style"). Injected into `prompt.rs` "## Role" block. This is an AI-behavior setting, distinct from persona answers (which are user facts).
+- **AI voice** (new, `app_settings` key `ai_voice`): free-text field ("How should Arnold AI sound? Tone, formality, coaching style"). Injected into `prompt.rs` "## Role" block. This is an AI-behavior setting, distinct from persona answers (which are user facts).
 - **Persona** (reuse): the 6 onboarding questions rendered via existing `persona.js::renderPersonaForm`, editable inline, saved via `savePersonaAnswers` (dedupe by question title, `created_by=onboarding`, per D-138). Remains `knowledge_items` so Memory-tab editing stays coherent.
 
 ### 5.2 Knowledge

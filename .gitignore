@@ -1,5 +1,5 @@
 # =============================================================================
-# HawkwardJournalAI - Barebone Repository Manifest
+# Arnold - Barebone Repository Manifest
 # =============================================================================
 
 # Rust / Backend Artifacts
@@ -156,3 +156,9 @@ CHANGELOG.md
 !/tools/js-checks/
 !/tools/*.ps1
 *.err
+
+# Playbook (private teaching material, not published)
+docs/playbook*.md
+
+# Internal review notes (not published)
+docs/FLAGS.md

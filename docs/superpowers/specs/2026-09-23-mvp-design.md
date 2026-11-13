@@ -25,7 +25,7 @@ Ship a **working MVP** on the existing codebase that delivers:
 6. **Settings, buttons, functions** that work (LLM Engine card, vault, backup, system check).
 7. **Hardened, sanitised, secure** surface (escape-first rendering, CSP, no secrets, no new vulnerable deps).
 
-Deliverable: a **release build** (installer + portable exe) that the user smoke-tests end-to-end on this machine (bundled engine + GGUFs already present in `%APPDATA%/HawkwardJournals/engines|models`).
+Deliverable: a **release build** (installer + portable exe) that the user smoke-tests end-to-end on this machine (bundled engine + GGUFs already present in `%APPDATA%/ArnoldJournals/engines|models`).
 
 ## 3. Scope
 
@@ -136,8 +136,8 @@ Sprint 9 deleted the suite; rebuild it **before** feature work so failures are a
 
 ## 12. Environment Facts (verified 2026-09-23)
 
-- Bundle: `%APPDATA%/HawkwardJournals/engines/llama-server.exe` + CUDA runtime present.
+- Bundle: `%APPDATA%/ArnoldJournals/engines/llama-server.exe` + CUDA runtime present.
 - Models: chat `Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf`; embed `nomic-embed-text-v2-moe.Q4_K_M.gguf`.
-- Live DB: `%APPDATA%/HawkwardJournals/hawkward.db` (real data, WAL). `data/` in repo is empty (placeholder). Rate: engine verified working 2026-09-19; user confirmed "the AI works" 2026-09-15.
+- Live DB: `%APPDATA%/ArnoldJournals/arnold.db` (real data, WAL). `data/` in repo is empty (placeholder). Rate: engine verified working 2026-09-19; user confirmed "the AI works" 2026-09-15.
 - Toolchain: cargo 1.95.0.
 - `docs/superpowers/specs/` is gitignored → doc commits need `git add -f` (F-003 precedent).

@@ -6,7 +6,7 @@
 
 ## Product Goal
 
-HawkwardJournalAI is first a journaling app. A user brain-dumps thoughts and feelings; the local AI reflects and helps unwind them, analyzes entries for useful tasks and insights, and helps organize the user's plans and schedule. Journal data and model inference stay on-device; the product has no accounts or cloud sync.
+ArnoldJournalAI is first a journaling app. A user brain-dumps thoughts and feelings; the local AI reflects and helps unwind them, analyzes entries for useful tasks and insights, and helps organize the user's plans and schedule. Journal data and model inference stay on-device; the product has no accounts or cloud sync.
 
 ## Locked Product Constraints
 

@@ -20,11 +20,11 @@ Report format per item: **PASS / FAIL / BLOCKED** + one sentence + log line if i
 | Embed GGUF (Nomic, 0.32 GiB) | `llama-b10952-bin-win-cuda-x64\models\nomic-embed-text-v2-moe.Q4_K_M.gguf` |
 | Engine binary | `llama-b10952-bin-win-cuda-x64\llama-server.exe` |
 | Fresh test profile | `test-data\fresh\` (empty, isolated data root) |
-| Upgrade test profile | `test-data\upgrade\` (copy of `%APPDATA%\HawkwardJournals\hawkward.db*` renamed to `arnold.db*`, both GGUFs hardlinked into `models\{chat,embed}`) |
+| Upgrade test profile | `test-data\upgrade\` (copy of `%APPDATA%\ArnoldJournals\arnold.db*` renamed to `arnold.db*`, both GGUFs hardlinked into `models\{chat,embed}`) |
 | Launcher | `tools\test-run.ps1 -Profile fresh \| -Profile upgrade` |
 
 `test-data\*` is isolated via `ARNOLD_DATA_DIR`, so nothing here touches your real app data.
-The upgrade profile is a **copy** — your real `%APPDATA%\HawkwardJournals` is untouched.
+The upgrade profile is a **copy** — your real `%APPDATA%\ArnoldJournals` is untouched.
 
 Launch:
 
@@ -46,7 +46,7 @@ DB for each profile: `test-data\<profile>\arnold.db` (+ `.salt`, `-wal`, `-shm`)
 
 Launch `.\tools\test-run.ps1 -Profile upgrade`, unlock with your **existing** vault password.
 
-- [ ] **A1 Unlock succeeds with the old password** (salt + SQLCipher key survive the `hawkward.db` → `arnold.db` rename).
+- [ ] **A1 Unlock succeeds with the old password** (salt + SQLCipher key survive the `arnold.db` → `arnold.db` rename).
 - [ ] **A2 No data loss** — journal entries visible, tasks still on the board, mood history present.
 - [ ] **A3 Migrations reached the top** — System → SQL Runner: `SELECT version FROM schema_migrations ORDER BY version;` returns `... 015, 016, 017` (017 = `ai_messages.tool_call_id`).
 - [ ] **A4 Analysis queue survives** — System → Analysis Queue counts match your real backlog; no `FOREIGN KEY constraint failed` in the log.

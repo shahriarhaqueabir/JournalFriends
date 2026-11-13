@@ -494,8 +494,8 @@ mod wire_tests {
         let d = AppDiagnostics {
             generated_at: "2026-10-08T00:00:00Z".to_string(),
             data_dir: "/data".to_string(),
-            db_path: "/data/hawkward.db".to_string(),
-            log_path: "/data/hawkward-debug.log".to_string(),
+            db_path: "/data/arnold.db".to_string(),
+            log_path: "/data/arnold-debug.log".to_string(),
             db_size_bytes: 1,
             journal_entries: 1,
             tasks: 1,
@@ -2441,7 +2441,7 @@ Run: `cargo tauri build --bundles msi nsis` (long; run from repo root) → fresh
 3. **Live Analyze button:** `#btn-analyze` on a dirty entry saves first, then the strip runs; on a brand-new unsaved entry it no-ops without error.
 4. **System tab:** all 14 runtime cells populate (no permanent `—`); `analysis_statuses` + `models` visible; Engines → Health updates latencies; Start/Stop/Restart per service behave; Analysis queue lists rows (seed a failure if needed) and Retry moves `failed → queued`; **Backup now** reports a produced path (verify the file exists); **Open data dir** and **Open log file** open Explorer; SQL runner: `SELECT COUNT(*) FROM tasks` returns rows, `UPDATE tasks SET title='x'` is rejected with the read-only error; log tail renders with the level filter.
 5. **Settings after the move:** sections = LLM Engine · System Check · Vault & Security · Activity Log · Development & Debugging; Activity Log still ticks; no `rt-*`/`log-tail` elements remain in Settings; `node --check` clean.
-6. **Carry-over from the fix pass (same session):** accept an **event proposal** and a **note proposal** in chat (no FOREIGN KEY error, migration 016); open + save **Task Detail** (no `missing field 'archived'`); **Run System Check** reports embed-role; controlled `:8081` squatter → explicit squatter message, no 501 spam in `hawkward-debug.log`.
+6. **Carry-over from the fix pass (same session):** accept an **event proposal** and a **note proposal** in chat (no FOREIGN KEY error, migration 016); open + save **Task Detail** (no `missing field 'archived'`); **Run System Check** reports embed-role; controlled `:8081` squatter → explicit squatter message, no 501 spam in `arnold-debug.log`.
 
 - [x] **Step 6: Self-Review Notes + spec-coverage map + docs commit**
 
@@ -2479,7 +2479,7 @@ Complete the writing-plans self-review — answer in this section of the plan (u
 **Release build (Step 4):** `cargo tauri build --bundles msi nsis` → fresh MSI + NSIS bundles produced (rebuilt again after the E-1/E-2 fix). ✅
 
 **Live E2E (Step 5) — results:**
-- 4. **System tab:** all 14 runtime cells populate (no permanent `—`); `analysis_statuses` + `models` visible; Engines shows `running` + pids; Analysis queue lists rows; **Backup now** returned a produced path (`…/backups/hawkward_backup_20261020_224440.db`); SQL runner: `SELECT` returns rows, `UPDATE` rejected with the read-only error (D-147); Settings sections = LLM Engine · System Check · Vault & Security · Activity Log · Development & Debugging. ✅ (Open data dir / Open log Explorer windows — human visual, deferred.)
+- 4. **System tab:** all 14 runtime cells populate (no permanent `—`); `analysis_statuses` + `models` visible; Engines shows `running` + pids; Analysis queue lists rows; **Backup now** returned a produced path (`…/backups/arnold_backup_20261020_224440.db`); SQL runner: `SELECT` returns rows, `UPDATE` rejected with the read-only error (D-147); Settings sections = LLM Engine · System Check · Vault & Security · Activity Log · Development & Debugging. ✅ (Open data dir / Open log Explorer windows — human visual, deferred.)
 - 5. **Settings after the move:** sections correct; no `rt-*`/`log-tail` elements remain in Settings; `node --check` clean. ✅
 - 2. **Analysis flow:** keystroke/save → strip `Queued → Analyzing… → Done` with entry title; analysis card appends (chat intact) with an **Extracted** section (8 proposal cards via `proposalCardHtml`, no `[object Object]`). ✅
 - 6. **Carry-over:** event + note proposal **accept** succeed (no FOREIGN KEY error — migration 016 good on the real encrypted DB); Task Detail save with `archived` stripped succeeds (`#[serde(default)]`); priority fallback (invalid → `medium`); `preflight_run` 6/6 incl. embed-reachable. ✅ (Controlled `:8081` squatter test — deferred as disruptive; board drags + Explorer windows — deferred as human-visual.)

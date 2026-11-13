@@ -649,7 +649,7 @@ With the app running under `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debu
 1. Via CDP evaluate: create a fresh journal entry with actionable content (e.g. title `SMOKE ANALYSIS`, content `"Schedule the dentist for Thursday and refill the car oil."`), wait for autosave.
 2. Poll `window.__TAURI_INTERNALS__.invoke("app_diagnostics", {})` every 5s for up to 2 min.
 3. Expected: `analysis_queue_len` reaches ≥1 or `analysis_statuses` shows a non-zero bucket, and a smoke task appears in `task_list` (AI-proposed) or a pending row in `proposed_list` if it is awaiting confirmation.
-4. Assert the debug log (`%APPDATA%/HawkwardJournals/hawkward-debug.log`) contains `queued for analysis` for the new entry id.
+4. Assert the debug log (`%APPDATA%/ArnoldJournals/arnold-debug.log`) contains `queued for analysis` for the new entry id.
 
 - [ ] **Step 3: Board drag live smoke**
 

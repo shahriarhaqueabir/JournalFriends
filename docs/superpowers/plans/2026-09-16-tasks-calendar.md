@@ -682,7 +682,7 @@ git commit -m "style(tasks): calendar layout, tray, and task-chip styles"
 
 - [ ] **Step 1: Rebuild + relaunch the app**
 
-Run: `cargo build` in `src-tauri` (0 errors, 6 pre-existing warnings), then launch `src-tauri/target/debug/hawkward-journal-ai.exe`.
+Run: `cargo build` in `src-tauri` (0 errors, 6 pre-existing warnings), then launch `src-tauri/target/debug/arnold-journal-ai.exe`.
 
 - [ ] **Step 2: Full end-to-end smoke**
 

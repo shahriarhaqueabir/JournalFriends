@@ -1881,7 +1881,7 @@ cargo build
 
 Launch via PowerShell:
 ```powershell
-Start-Process "src-tauri\target\debug\hawkward-journals.exe"
+Start-Process "src-tauri\target\debug\arnold.exe"
 ```
 
 Expected: app boots; log shows `[DB] Applying migration 12: knowledge_base`; Memory tab shows cards (migrated facts appear); add/edit/delete/link/unlink/search/filter work; Review-Inbox shows AI `memory` proposals after a chat tool call, and Accept creates the item.
