@@ -12,6 +12,9 @@ let currentEntryId = null;
 let currentConversationId = null;
 let currentAiBubble = null;
 let inboxEl = null;
+// Master switch (D-164/D-166). `null` means "not read yet" — keep the UI
+// available until the setting resolves so a slow/locked DB cannot hide AI.
+let aiEnabled = null;
 // M7: buffer events that arrive before the sidebar is initialized.
 const pendingEvents = [];
 
@@ -224,12 +227,60 @@ export function initAiSidebar() {
     }
   });
 
-  // M7: replay any events that arrived before init.
-  while (pendingEvents.length) {
-    const ev = pendingEvents.shift();
-    handleAppEvent(ev);
+  // Gate the AI surface on the master switch before replaying history/events
+  // (D-164/D-166). Enabling it in Settings calls refreshAiAvailability().
+  refreshAiAvailability().then(() => {
+    // M7: replay any events that arrived before init.
+    while (pendingEvents.length) {
+      const ev = pendingEvents.shift();
+      handleAppEvent(ev);
+    }
+    if (aiEnabled !== false) loadLatestConversation();
+  });
+}
+
+/** Re-read `ai_enabled` and apply the sidebar visibility (D-164). */
+export async function refreshAiAvailability() {
+  try {
+    aiEnabled = !!(await invoke("ai_enabled_get", {}, { silent: true }));
+  } catch {
+    // Vault locked / command unavailable: fail open rather than hiding the UI
+    // permanently. The unlock path calls this again.
+    if (aiEnabled === null) aiEnabled = true;
   }
-  loadLatestConversation();
+  applyAiAvailability();
+}
+
+function applyAiAvailability() {
+  const disabled = aiEnabled === false;
+  const composer = document.querySelector("#right-sidebar .chat-input-area");
+  composer?.classList.toggle("hidden", disabled);
+  document.getElementById("analysis-strip")?.classList.toggle("hidden", disabled);
+  document.getElementById("btn-open-inbox")?.classList.toggle("hidden", disabled);
+  document.getElementById("rail-inbox-count")?.classList.toggle("hidden", disabled);
+  if (disabled) document.getElementById("ai-inbox")?.classList.add("hidden");
+
+  if (!messagesEl) return;
+  if (disabled) {
+    messagesEl.dataset.aiDisabled = "1";
+    messagesEl.innerHTML = `
+      <div class="chat-assistant ai-disabled-notice">
+        AI features are disabled. Enable them in Settings → AI Features.
+      </div>`;
+    return;
+  }
+  if (messagesEl.dataset.aiDisabled === "1") {
+    messagesEl.dataset.aiDisabled = "";
+    messagesEl.innerHTML =
+      '<div class="chat-assistant">Write in your journal to begin.</div>';
+    loadLatestConversation();
+  }
+}
+
+// Other modules (settings toggle, unlock flow) call this without importing.
+// Guarded for non-browser (Node) contexts where `window` is absent.
+if (typeof window !== "undefined") {
+  window.refreshAiAvailability = refreshAiAvailability;
 }
 
 async function loadInbox() {
@@ -325,12 +376,15 @@ async function renderProposalCards(count) {
   // (e.g. after every chat turn that leaves pending proposals).
   messagesEl.querySelectorAll(".ai-proposal-flow").forEach((el) => el.remove());
   try {
-    const items = await invoke(
+    const pending = await invoke(
       "proposed_list",
       { status: "pending", limit: 25 },
       { silent: true },
     );
-    if (!items || !items.length) return;
+    // D-165/D-167: only tasks are interactive. Notes, facts, and events are
+    // internal — never render them as sidebar confirmation cards.
+    const items = (pending || []).filter((it) => it.item_type === "task");
+    if (!items.length) return;
     const cardWrap = document.createElement("div");
     cardWrap.className = "ai-proposal-flow";
     cardWrap.innerHTML = items.map((it) => proposalCardHtml(it)).join("");
@@ -376,6 +430,9 @@ export function handleAppEvent(payload) {
     pendingEvents.push(payload);
     return;
   }
+
+  // Nothing in the sidebar should react while AI is switched off.
+  if (aiEnabled === false) return;
 
   const { type } = payload;
   recordDiagnostic("ai_sidebar:event", {
@@ -596,6 +653,7 @@ function renderAnalysisResult(result) {
 }
 
 async function sendChatMessage() {
+  if (aiEnabled === false) return;
   const text = inputEl.value.trim();
   if (!text) return;
 
@@ -635,8 +693,13 @@ async function sendChatMessage() {
         { status: "pending", limit: 25 },
         { silent: true },
       );
-      if (pending && pending.length) {
-        await renderProposalCards(pending.length);
+      // Only task proposals are actionable in the sidebar; notes/facts stay
+      // internal (D-167), so don't pop the Inbox for them.
+      const pendingTasks = (pending || []).filter(
+        (it) => it.item_type === "task",
+      );
+      if (pendingTasks.length) {
+        await renderProposalCards(pendingTasks.length);
         await loadInbox();
         if (inboxEl && inboxEl.classList.contains("hidden")) {
           inboxEl.classList.remove("hidden");

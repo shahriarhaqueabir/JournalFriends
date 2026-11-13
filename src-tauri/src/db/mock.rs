@@ -40,7 +40,7 @@ fn full_migration_stack_applies_cleanly() {
     let applied: i64 = conn
         .query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(applied, 18);
+    assert_eq!(applied, 19);
 
     let expected_tables = [
         "notebooks",
@@ -96,7 +96,7 @@ fn run_pending_is_idempotent_on_second_pass() {
     let after: i64 = conn
         .query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(before, 18);
+    assert_eq!(before, 19);
     assert_eq!(after, before);
 }
 

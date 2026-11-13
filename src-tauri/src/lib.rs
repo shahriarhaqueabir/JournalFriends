@@ -1604,7 +1604,7 @@ async fn memory_unlink(state: tauri::State<'_, AppState>, link_id: String) -> Re
 
 #[tauri::command]
 async fn proposed_action(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     id: String,
     action: String,
@@ -1613,17 +1613,20 @@ async fn proposed_action(
     use crate::db::tasks;
 
     let db = state.db()?;
-    db::pool::with_tx(db, move |tx| {
+    let task_event = db::pool::with_tx(db, move |tx| {
         // Fetch proposal
         let proposal = ai::get_proposal(tx, &id)?
             .ok_or_else(|| AppError::NotFound(format!("Proposal {} not found", id)))?;
+        // Set when this accept mutated a task; emitted after the transaction
+        // commits so the UI never refreshes on a rolled-back write (D-166).
+        let mut task_event: Option<(String, String)> = None;
 
         match action.as_str() {
             "accept" => {
                 // Idempotency: a repeated accept must not create a duplicate
                 // record, and a dismissed proposal can never be applied.
                 if proposal.status == "accepted" {
-                    return Ok(());
+                    return Ok(None);
                 }
                 if proposal.status == "dismissed" {
                     return Err(AppError::InvalidInput(
@@ -1653,7 +1656,13 @@ async fn proposed_action(
                                 Some("user"),
                                 Some(&Utc::now().to_rfc3339()),
                             )?;
-                            return Ok(());
+                            let change = if proposal_kind == "task_complete" {
+                                "completed"
+                            } else {
+                                "updated"
+                            };
+                            task_event = Some((task_id, change.to_string()));
+                            return Ok(task_event);
                         }
 
                         let title = data.get("title")
@@ -1704,6 +1713,7 @@ async fn proposed_action(
                         tasks::create_task(tx, &task)?;
 
                         ai::update_proposal_status(tx, &id, "accepted", Some(&task.id), Some("user"), Some(&Utc::now().to_rfc3339()))?;
+                        task_event = Some((task.id.clone(), "created".to_string()));
                     }
                     "fact" => {
                         let data: serde_json::Value = serde_json::from_str(&proposal.proposed_data)
@@ -1945,8 +1955,15 @@ async fn proposed_action(
             }
         }
 
-        Ok(())
+        Ok(task_event)
     }).await?;
+
+    if let Some((task_id, action)) = task_event {
+        crate::events::emit(
+            &app,
+            crate::events::AppEvent::TaskChanged { task_id, action },
+        );
+    }
 
     Ok(())
 }

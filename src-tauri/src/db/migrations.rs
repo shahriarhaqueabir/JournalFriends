@@ -99,6 +99,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "gpu_layers_auto",
         sql: include_str!("../../migrations/018_gpu_layers_auto.sql"),
     },
+    Migration {
+        version: 19,
+        name: "ai_enabled_upgrade",
+        sql: include_str!("../../migrations/019_ai_enabled_upgrade.sql"),
+    },
 ];
 
 /// Migrations that rebuild a table with FK dependents. Reserved: SQLite FK
@@ -462,5 +467,70 @@ mod tests {
             )
             .unwrap();
         assert_eq!(kept, "40");
+    }
+
+    #[test]
+    fn ai_enabled_migration_opts_in_existing_ai_installs_only() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!("../../migrations/001_initial.sql"))
+            .unwrap();
+
+        let run = |conn: &mut Connection| {
+            let tx = conn.transaction().unwrap();
+            let sql = strip_outer_transaction(include_str!(
+                "../../migrations/019_ai_enabled_upgrade.sql"
+            ));
+            ensure_no_explicit_transactions(&sql, "019").unwrap();
+            tx.execute_batch(&sql).unwrap();
+            tx.commit().unwrap();
+        };
+
+        // Existing install with a configured chat model keeps AI enabled.
+        conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at)
+             VALUES ('llama_chat_model', 'model.gguf', 'x')",
+            [],
+        )
+        .unwrap();
+        run(&mut conn);
+        let enabled: String = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key='ai_enabled'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(enabled, "true");
+
+        // An explicit choice (including false) is never overwritten.
+        conn.execute(
+            "UPDATE app_settings SET value='false' WHERE key='ai_enabled'",
+            [],
+        )
+        .unwrap();
+        run(&mut conn);
+        let kept: String = conn
+            .query_row(
+                "SELECT value FROM app_settings WHERE key='ai_enabled'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "false");
+
+        // Fresh install: no model yet, so seed_defaults still supplies false.
+        let mut fresh = Connection::open_in_memory().unwrap();
+        fresh
+            .execute_batch(include_str!("../../migrations/001_initial.sql"))
+            .unwrap();
+        run(&mut fresh);
+        let rows: i64 = fresh
+            .query_row(
+                "SELECT COUNT(*) FROM app_settings WHERE key='ai_enabled'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(rows, 0, "new installs must stay opted out");
     }
 }

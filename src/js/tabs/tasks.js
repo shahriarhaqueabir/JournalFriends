@@ -1,7 +1,26 @@
 import { invoke } from "../ipc.js";
 import { escapeHtml } from "../sanitize.js";
+import { showToast } from "../notifications.js";
 import { initTasksCalendar } from "./tasks-calendar.js";
 import { BOARD_LAYOUTS, columnStatusForTask, dropStatusFor } from "./board-model.js";
+
+// Set inside initTasks so the global app_event router can refresh the list
+// without reaching into the closure.
+let refreshFromAi = null;
+
+const TASK_CHANGE_LABELS = {
+  created: "Task created",
+  updated: "Task updated",
+  completed: "Task completed",
+  deleted: "Task deleted",
+};
+
+/** D-166: react to a backend `task_changed` event. */
+export function handleTaskChanged(payload) {
+  const label = TASK_CHANGE_LABELS[payload?.action];
+  if (label) showToast(label, { variant: "success", timeoutMs: 3000 });
+  refreshFromAi?.();
+}
 
 export function initTasks() {
   const listEl = document.getElementById("task-list-items");
@@ -41,7 +60,9 @@ export function initTasks() {
   };
 
   if (!listEl) return;
-  
+
+  refreshFromAi = () => refreshTasks(searchInput.value);
+
   let currentFilter = "all";
 
   // --- REFRESH / LIST ---

@@ -399,6 +399,7 @@ async function initAiFeaturesSection() {
       }
     }
     await applyVisibility(nowEnabled);
+    window.refreshAiAvailability?.();
     if (nowEnabled) {
       try {
         await invoke("provision_model_cmd");

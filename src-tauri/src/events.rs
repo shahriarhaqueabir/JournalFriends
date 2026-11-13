@@ -45,6 +45,13 @@ pub enum AppEvent {
         conversation_id: String,
         count: u32,
     },
+    /// A task was created/updated/completed by an accepted proposal, so the
+    /// tasks tab can re-fetch without a manual refresh (D-166).
+    TaskChanged {
+        task_id: String,
+        /// "created" | "updated" | "completed" | "deleted"
+        action: String,
+    },
     /// First-run: emitted at startup when `onboarding_complete` is unset (P-04).
     OnboardingRequired,
     /// Model provisioning finished successfully (P-03).

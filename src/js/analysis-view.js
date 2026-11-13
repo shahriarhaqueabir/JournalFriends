@@ -1,24 +1,7 @@
 // Pure, escape-first renderer for the analysis card's "Extracted" section
-// (spec 2.2 / D-145). No DOM access — node harnesses import this directly.
+// (spec 2.2 / D-145, D-165, D-167). No DOM access — node harnesses import this
+// directly.
 import { escapeHtml } from "./sanitize.js";
-
-const SNIPPET_LEN = 120;
-
-function truncate(text, max = SNIPPET_LEN) {
-  const s = String(text ?? "");
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-}
-
-function localStamp(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso ?? "");
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function group(title, itemsHtml) {
   if (!itemsHtml) return "";
@@ -40,41 +23,71 @@ function taskItem(t) {
   }</span></li>`;
 }
 
-function eventItem(e) {
-  if (!e || typeof e !== "object") return "";
-  const title = String(e.title ?? "").trim() || "Untitled event";
-  const when = localStamp(e.start_at);
-  const where = e.location ? ` · ${escapeHtml(e.location)}` : "";
-  return `<li><span class="extracted-chip">${escapeHtml(title)} — ${escapeHtml(when)}${where}</span></li>`;
+function countLabel(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function noteItem(n) {
-  if (!n || typeof n !== "object") return "";
-  const title = String(n.title ?? "").trim() || "Untitled note";
-  const snippet = truncate(n.content);
-  return `<li><span class="extracted-chip"><strong>${escapeHtml(title)}</strong>${
-    snippet ? ` — ${escapeHtml(snippet)}` : ""
-  }</span></li>`;
+function joinList(parts) {
+  if (parts.length <= 1) return parts[0] || "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
-function factItem(f) {
-  if (!f || typeof f !== "object") return "";
-  const cat = f.category
-    ? `<span class="extracted-cat">${escapeHtml(f.category)}</span> `
-    : "";
-  return `<li><span class="extracted-chip">${cat}${escapeHtml(f.content ?? "")}</span></li>`;
+function hasText(value) {
+  return String(value ?? "").trim().length > 0;
+}
+
+function collection(result, key) {
+  return Array.isArray(result[key]) ? result[key] : [];
+}
+
+/**
+ * Notes, facts, and events are internal (D-167): they are saved without an
+ * interactive confirmation card, so the analysis card only reports how many
+ * were captured. Never include their content here — counts only.
+ */
+function otherItemsSummary(result) {
+  const notes = collection(result, "notes").filter((n) =>
+    n && typeof n === "object"
+      ? hasText(n.content) || hasText(n.title)
+      : hasText(n),
+  );
+  const facts = collection(result, "facts").filter((f) =>
+    f && typeof f === "object"
+      ? hasText(f.content) || hasText(f.fact_key)
+      : hasText(f),
+  );
+  const events = collection(result, "events").filter((e) =>
+    e && typeof e === "object"
+      ? hasText(e.title) || hasText(e.start_at)
+      : hasText(e),
+  );
+
+  const saved = [];
+  if (notes.length) saved.push(countLabel(notes.length, "note", "notes"));
+  if (facts.length) saved.push(countLabel(facts.length, "fact", "facts"));
+
+  const sentences = [];
+  if (saved.length) {
+    sentences.push(
+      `I've saved ${joinList(saved)} to memory for future context.`,
+    );
+  }
+  if (events.length) {
+    sentences.push(
+      `I've added ${countLabel(events.length, "event", "events")} to your calendar.`,
+    );
+  }
+  return sentences.join(" ");
 }
 
 export function extractedItemsHtml(result) {
   if (!result || typeof result !== "object") return "";
-  const tasks = Array.isArray(result.tasks) ? result.tasks : [];
-  const events = Array.isArray(result.events) ? result.events : [];
-  const notes = Array.isArray(result.notes) ? result.notes : [];
-  const facts = Array.isArray(result.facts) ? result.facts : [];
+  const tasks = collection(result, "tasks");
+  const summary = otherItemsSummary(result);
   return [
     group("Tasks", tasks.map(taskItem).join("")),
-    group("Events", events.map(eventItem).join("")),
-    group("Notes", notes.map(noteItem).join("")),
-    group("Facts", facts.map(factItem).join("")),
+    // Built only from internal text + numeric counts — no user content.
+    summary ? `<p class="extracted-summary">${summary}</p>` : "",
   ].join("");
 }

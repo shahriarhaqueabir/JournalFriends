@@ -1,5 +1,5 @@
 import { initJournal } from "./tabs/journal.js";
-import { initTasks } from "./tabs/tasks.js";
+import { initTasks, handleTaskChanged } from "./tabs/tasks.js";
 import { initMood } from "./tabs/mood.js";
 import { initInsights, refreshInsights } from "./tabs/insights.js";
 import { initEvents } from "./tabs/events.js";
@@ -60,6 +60,9 @@ if (globalThis.__TAURI__?.event?.listen) {
       if (warning) showToast(warning, { variant: "warn", timeoutMs: 8000 });
     } else if (payload?.type === "llama_engine_started") {
       if (payload.service === "chat") void warnWhenEngineStatusKnown();
+    } else if (payload?.type === "task_changed") {
+      // D-166: accepted AI task proposals refresh the tasks tab automatically.
+      handleTaskChanged(payload);
     }
     // Dispatch to relevant modules
     handleAppEvent(payload);
@@ -272,6 +275,9 @@ async function checkVaultStatus() {
       if (window.showVault) window.showVault();
     } else {
       if (window.hideVault) window.hideVault();
+      // The master switch lives in the encrypted DB, so re-read it once the
+      // vault is open (D-164).
+      window.refreshAiAvailability?.();
       // If unlocked, check if onboarding is still needed (T-07)
       await invoke("check_onboarding", {}, { silent: true });
     }
