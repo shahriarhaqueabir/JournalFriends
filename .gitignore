@@ -162,3 +162,9 @@ docs/playbook*.md
 
 # Internal review notes (not published)
 docs/FLAGS.md
+
+# Private modules (secrets, adapters, config - never committed)
+private/
+private/secrets/
+private/adapters/
+private/config/
