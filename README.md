@@ -1,5 +1,8 @@
-# Arnold 🎨 — Personal Desktop Diary
+# JournalFriends - Personal Desktop Diary
 
+<p align="center">
+  <img src="JournalFriends.jpg" alt="JournalFriends" width="400">
+</p>
 > **Private, offline-first Windows desktop app** combining a plain-text journal, a
 > full task manager, and a local AI assistant powered by **llama.cpp**. Everything
 > runs on your machine — no cloud, no subscriptions, no data leaves. 🛡️
@@ -11,6 +14,12 @@
 ![AI Engine: llama.cpp](https://img.shields.io/badge/AI_Engine-llama.cpp-green.svg)
 
 ---
+
+## Fun things you can do
+
+- Write a private journal that no one - not even the cloud - can read
+- Let the AI propose tasks based on your entries, but you approve every one
+- Ask the AI to summarize your week - it never writes, only proposes
 
 ## 🎬 The story — why this exists
 
