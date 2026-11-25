@@ -20,19 +20,21 @@ $dataDir = Join-Path $repo "test-data\$Profile"
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
 if ($Profile -eq 'upgrade') {
-  $src = Join-Path $env:APPDATA 'HawkwardJournals'
+  $legacyAppName = if ($env:JOURNALFRIENDS_LEGACY_APPDATA) { $env:JOURNALFRIENDS_LEGACY_APPDATA } else { 'JournalFriendsLegacy' }
+  $src = Join-Path $env:APPDATA $legacyAppName
+  $legacyPrefix = if ($env:JOURNALFRIENDS_LEGACY_PREFIX) { $env:JOURNALFRIENDS_LEGACY_PREFIX } else { 'journalfriends' }
   $map = @{
-    'hawkward.db'      = 'arnold.db'
-    'hawkward.db-wal'  = 'arnold.db-wal'
-    'hawkward.db-shm'  = 'arnold.db-shm'
-    'hawkward.db.salt' = 'arnold.db.salt'
+    "$legacyPrefix.db"      = 'arnold.db'
+    "$legacyPrefix.db-wal"  = 'arnold.db-wal'
+    "$legacyPrefix.db-shm"  = 'arnold.db-shm'
+    "$legacyPrefix.db.salt" = 'arnold.db.salt'
   }
   foreach ($from in $map.Keys) {
     $f = Join-Path $src $from
     if (Test-Path $f) { Copy-Item $f (Join-Path $dataDir $map[$from]) -Force }
   }
   if (-not (Test-Path (Join-Path $dataDir 'arnold.db'))) {
-    throw "No legacy DB found under $src - nothing to upgrade-test."
+    throw "No legacy DB found under $src - nothing to upgrade-test. Set JOURNALFRIENDS_LEGACY_APPDATA/JOURNALFRIENDS_LEGACY_PREFIX to point at legacy data."
   }
   Write-Host "Upgrade profile seeded from $src (legacy password required on unlock)."
 }
