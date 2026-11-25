@@ -189,7 +189,7 @@ git commit -m "feat(tasks): real In Progress column on the default board"
 
 - [ ] **Step 1: Create the failing guard**
 
-Create `tools/js-checks/ipc-conventions.test.mjs` (faithful JS port of the validated scanner `C:\Users\shahr\AppData\Local\Temp\opencode\scan_invoke_snake.py` — brace/string-aware, nested keys exempt):
+Create `tools/js-checks/ipc-conventions.test.mjs` (faithful JS port of the validated scanner a local scanner script — brace/string-aware, nested keys exempt):
 
 ```js
 // D-148 guard: fails on any top-level snake_case key in an invoke() payload.
