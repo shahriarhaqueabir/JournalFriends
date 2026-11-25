@@ -1,14 +1,14 @@
 {
-  "productName": "Arnold",
+  "productName": "JournalFriends",
   "version": "0.1.0",
-  "identifier": "com.arnold.journal",
+  "identifier": "com.journalfriends.app",
   "build": {
     "frontendDist": "../src"
   },
   "app": {
     "windows": [
       {
-        "title": "Arnold",
+        "title": "JournalFriends",
         "width": 1400,
         "height": 900,
         "minWidth": 1200,
