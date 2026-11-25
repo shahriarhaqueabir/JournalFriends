@@ -3,6 +3,7 @@
 <p align="center">
   <img src="JournalFriends.jpg" alt="JournalFriends" width="400">
 </p>
+
 > **Private, offline-first Windows desktop app** combining a plain-text journal, a
 > full task manager, and a local AI assistant powered by **llama.cpp**. Everything
 > runs on your machine — no cloud, no subscriptions, no data leaves. 🛡️
