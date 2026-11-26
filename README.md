@@ -8,7 +8,7 @@
 > full task manager, and a local AI assistant powered by **llama.cpp**. Everything
 > runs on your machine — no cloud, no subscriptions, no data leaves. 🛡️
 
-[![CI](https://github.com/shahriarhaqueabir/arnold/actions/workflows/quality.yml/badge.svg)](https://github.com/shahriarhaqueabir/arnold/actions/workflows/quality.yml)
+[![CI](https://github.com/shahriarhaqueabir/JournalFriends/actions/workflows/quality.yml/badge.svg)](https://github.com/shahriarhaqueabir/JournalFriends/actions/workflows/quality.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tauri Version](https://img.shields.io/badge/Tauri-v2-blue.svg)](https://v2.tauri.app/)
 [![Rust Version](https://img.shields.io/badge/Rust-1.77%2B-orange.svg)](https://www.rust-lang.org/)
